@@ -209,10 +209,12 @@ def import_all_rtt_from_jsonl(
         for line in f:
             data = json.loads(line)
 
-            for file_meta in data.get("file_urls", []):
+            for file_meta in data.get("files", []):
                 period = file_meta.get("period")
                 if not period:
                     continue
+
+                print(f"Processing {period}: {file_meta.get('filename')}")
 
                 # Apply period filters
                 if start_period and period < start_period:
