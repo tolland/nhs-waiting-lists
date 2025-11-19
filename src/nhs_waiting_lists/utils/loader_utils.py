@@ -32,8 +32,17 @@ def fiscal_to_calendar(row):
     start_year, end_year = row["Year"].split("-")
     month = MONTHS[row["Period Name"].upper()]
     # April–December belong to start_year, Jan–Mar to end_year
-    year = int(start_year) if month >= 4 else int(end_year)
+    year = int(start_year) if month >= 4 else int(start_year+1)
     return f"{year:04d}-{month:02d}"
+
+def fix_rtt_period(row):
+    if row["Period"].startswith("RTT-"):
+        return parse_rtt_period(row["Period"])
+    else:
+        start_yyyy, end_yy, month = row["Period"].split("-")
+        year = int(start_yyyy) if MONTHS[month] >= 4 else (int(start_yyyy) + 1)
+        return f"{year:04d}-{MONTHS[month]:02d}"
+
 
 rtt_csv_key = [
     "Provider Org Code",
@@ -123,5 +132,3 @@ def clean_wtt_rows(df_source):
         df_result["wait_sum"] - df_result["total_all"] + df_result["patients_with_unknown_clock_start_date"],
     )
     return df_result
-
-
