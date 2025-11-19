@@ -1,3 +1,9 @@
+from nhs_waiting_lists.utils.xdg import XDGBasedir
+from pathlib import Path
+from nhs_waiting_lists import (
+    __app_name__,
+)
+
 # Scrapy settings for tutorial project
 #
 # For simplicity, this file contains only settings considered important or
@@ -68,8 +74,10 @@ FILES_STORE = "files"
 FILES_URLS_FIELD = 'file_urls'
 FILES_RESULT_FIELD = 'files'
 
+files_dir = Path(XDGBasedir.get_data_dir(__app_name__)) / "files"
+
 FEEDS = {
-    'files/downloads_%(name)s.jsonl': {
+    f"{files_dir}/downloads_%(name)s.jsonl": {
         'format': 'jsonlines',
         'overwrite': True,
         'indent': 4,
