@@ -20,14 +20,12 @@ def importer_callback(ctx: typer.Context):
     typer.echo(f"in the providers callback")
 
 
-@app.command("auto")
-def auto_import(
-        ctx: typer.Context,
-):
-    typer.echo(f"auto importing the providers ....")
-
-
 def local_file_parser(local_file: str):
+    """
+    The purpose of this function is to provide the validation of
+    a path given to an importer, to allow use of various formats
+    such as prefixe with a schema.
+    """
     print(f"in the local file parser")
     if local_file.startswith("file:///"):
         print(f"stripping prefix")

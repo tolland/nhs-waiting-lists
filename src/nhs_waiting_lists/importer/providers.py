@@ -12,20 +12,22 @@ from nhs_waiting_lists.utils.xdg import XDGBasedir
 project_root = Path(XDGBasedir.get_data_dir(__app_name__))
 
 DB_PATH = project_root / proj_db_path / "provider_raw.db"
-DATA_DIR = project_root / "data"
+DATA_DIR = project_root / "files"
 
 engine = create_engine(f"sqlite:///{DB_PATH}")
 
 """
 NHS Provider Data Parser
-Parses Excel files downloaded from NHS and loads them into SQLite database
+Parses Excel files downloaded from NHS and loads them into SQLite database.
+This appears to be part of a data series, in that league tables are regularly
+published, but I am not seeing multiple data files for various months.
 """
 
 
 def load_providers():
 
     df = pd.read_csv(
-        DATA_DIR / 'nhs-oversight-framework-acute-trust-league-table.csv',
+        DATA_DIR / 'provider-oversight/nhs-oversight-framework-acute-trust-league-table.csv',
     )
 
     df = df.rename(columns={
