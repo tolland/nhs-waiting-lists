@@ -38,9 +38,35 @@ class RTTFormatRegistry:
 
     def _setup_default_formats(self):
         """Define the known format changes."""
-        # Pre-October 2017: files with frontmatter
+        # early files with frontmatter and weird column names
         self.register(
-            start=date(2015, 4, 1),  # Adjust based on earliest data
+            start=date(2000, 4, 1),  # Adjust based on earliest data
+            end=date(2016, 6, 30),
+            spec=CSVFormatSpec(
+                skiprows=2,  # Skip the frontmatter lines
+                column_mapping={
+                    "RTT Part Name": "RTT Part Type",
+                },
+                column_concat={"Period": ["Year", "Period Name"]},
+                format_name="pre_july_2016",
+            ),
+        )
+        self.register(
+            start=date(2016, 7, 1),  # Adjust based on earliest data
+            end=date(2016, 7, 31),
+            spec=CSVFormatSpec(
+                skiprows=2,  # Skip the frontmatter lines
+                column_mapping={
+                    "Treatment Function Name": "Treatment Function Code",
+                    "Treatment Function Description": "Treatment Function Name",
+                    "RTT Part Name": "RTT Part Type",
+                },
+                column_concat={"Period": ["Year", "Period Name"]},
+                format_name="july_2016",
+            ),
+        )
+        self.register(
+            start=date(2016, 8, 1),  # Adjust based on earliest data
             end=date(2017, 9, 30),
             spec=CSVFormatSpec(
                 skiprows=2,  # Skip the frontmatter lines

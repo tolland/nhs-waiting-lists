@@ -6,6 +6,7 @@ from typing import Optional
 
 import pandas as pd
 import numpy as np
+from nhs_waiting_lists.utils.loader_utils import fiscal_to_calendar, fix_rtt_period
 from sqlalchemy import create_engine
 
 from nhs_waiting_lists import (
@@ -73,13 +74,17 @@ def load_rtt_csv_from_zip(zip_path: Path, period: str, registry: RTTFormatRegist
             df[col] = df[cols].astype(str).agg("-".join, axis=1)
             df.drop(columns=cols, inplace=True)
 
+    # fix mangled dates in Period column
+    df["Period"] = df.apply(fix_rtt_period, axis=1)
+
     # Clean column names
     df.columns = (df.columns
                   .str.strip()
                   .str.lower()
                   .str.replace(" ", "_")
                   .str.replace("[()€$]", "", regex=True)
-                  .str.replace("_sum_1", ""))
+                  .str.replace("_sum_1", "")
+                  .str.replace("_sum", ""))
 
     return df
 
@@ -179,7 +184,10 @@ def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry,
         name="all_rtt_raw",
         con=engine,
         if_exists="append",
-        index=False
+        index=False,
+        # @TODO exceeds parameter count limit
+        # method='multi',
+        # chunksize=100,
     )
 
     print(f"  ✓ Imported {len(df):,} rows")
@@ -202,7 +210,7 @@ def import_all_rtt_from_jsonl(
         check_only: If True, only run QA checks without importing
     """
     if jsonl_path is None:
-        jsonl_path = FILES_DIR / "downloadsrtt-waiting-times.jsonl"
+        jsonl_path = FILES_DIR / "downloads_rtt-waiting-times.jsonl"
 
     if not jsonl_path.exists():
         raise FileNotFoundError(f"JSONL file not found: {jsonl_path}")
@@ -220,7 +228,17 @@ def import_all_rtt_from_jsonl(
         for line in f:
             data = json.loads(line)
 
-            for file_meta in data.get("files", []):
+            # Deduplicate files by source URL (preserve first occurrence)
+            files = data.get("files", [])
+            unique_files = []
+            seen_urls = set()
+            for fm in files:
+                url = fm.get("url")
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_files.append(fm)
+
+            for file_meta in unique_files:
                 period = file_meta.get("period")
                 if not period:
                     continue
@@ -256,7 +274,6 @@ def import_all_rtt_from_jsonl(
 
                 import_rtt_period(period, file_path, registry, check_only=check_only)
                 imported_count += 1
-
     print()
     print(f"{'Checked' if check_only else 'Imported'}: {imported_count} periods")
     if skipped_count > 0:
