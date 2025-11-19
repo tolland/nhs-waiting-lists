@@ -28,7 +28,9 @@ class QuotesSpider(scrapy.Spider):
     ]
 
     def parse(self, response: Response, **kwargs: Any) -> Any:
-        file_urls = []
+        # Use dict to deduplicate by period - last one wins (typically revised versions)
+        file_urls_dict = {}
+
         for quote in response.css("a"):
             if "href" in quote.attrib:
                 if "/statistical-work-areas/rtt-waiting-times/rtt-data-" in quote.attrib["href"]:
@@ -44,18 +46,23 @@ class QuotesSpider(scrapy.Spider):
                         month_num = MONTH_MAP[month_abbr]
                         # Create period in YYYY-MM format
                         period = f"{year_4digit}-{month_num}"
-                        
-                        print(f"found zipped csv of monthly rtt WTD for period {period}")
-                        file_urls.append({
+
+                        # Deduplicate by period - last one wins (typically revised versions)
+                        file_urls_dict[period] = {
                             "dataset": "rtt-waiting-times",
                             "href": quote.attrib["href"],
                             'link_text': quote.css("::text").get(),
                             'period': period,
-                        })
+                        }
 
 
 # https://files.digital.nhs.uk/D6/4B3B73/hosp-epis-stat-admi-pla-2022-23-data.csv
 
+
+        # Convert dict back to list, sorted by period
+        file_urls = [file_urls_dict[period] for period in sorted(file_urls_dict.keys())]
+
+        print(f"Found {len(file_urls)} unique periods")
 
         yield {
             'file_urls': file_urls,  # This triggers the Files Pipeline
