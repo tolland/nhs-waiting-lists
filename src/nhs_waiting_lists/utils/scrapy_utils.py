@@ -5,7 +5,8 @@ from typing import Set
 
 import pandas as pd
 
-from src.nhs_rtt.utils.utils2 import CSVFormatSpec, load_rtt_csv
+from nhs_waiting_lists.utils.utils2 import load_rtt_csv
+from nhs_waiting_lists.utils.csv_format_spec import CSVFormatSpec
 
 
 @dataclass

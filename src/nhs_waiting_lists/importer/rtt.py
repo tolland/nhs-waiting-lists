@@ -1,5 +1,6 @@
-import sqlite3
 from pathlib import Path
+
+from sqlalchemy import create_engine
 
 from nhs_waiting_lists import (
     __app_name__,
@@ -11,10 +12,11 @@ project_root = Path(XDGBasedir.get_data_dir(__app_name__))
 
 DB_PATH = project_root / proj_db_path / "nhs_rttwtd.db"
 
-
-conn = sqlite3.connect(DB_PATH)
+# Database engine for RTT data imports
+# Use: engine = create_engine(f"sqlite:///{DB_PATH}")
+# Then: df.to_sql(name="table_name", con=engine, if_exists="replace", index=False)
 
 """
-NHS Provider Data Parser
-Parses Excel files downloaded from NHS and loads them into SQLite database
+NHS RTT Data Importer
+Imports RTT waiting times data downloaded from NHS into SQLite database
 """
