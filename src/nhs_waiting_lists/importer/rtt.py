@@ -158,14 +158,20 @@ def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry,
     # Run QA checks
     issues = check_qa_issues(df, period)
     if issues:
-        print(f"  ⚠️ QA Issues:")
+        error_msg = f"  ❌ QA Issues found in {period}:\n"
         for issue in issues:
-            print(f"    - {issue}")
-        if not check_only:
-            print(f"  ⚠️ Importing anyway (issues logged)")
+            error_msg += f"    - {issue}\n"
+
+        if check_only:
+            print(error_msg)
+            print(f"  ✓ QA check complete (issues found)")
+            return df
+        else:
+            # Fail fast - do not import data with QA issues
+            raise ValueError(error_msg + "\n  Refusing to import data with QA issues. Fix source data or adjust tolerance.")
 
     if check_only:
-        print(f"  ✓ QA check complete")
+        print(f"  ✓ QA check complete (no issues)")
         return df
 
     # Import to database
@@ -240,9 +246,13 @@ def import_all_rtt_from_jsonl(
                     if matches:
                         file_path = matches[0]
                     else:
-                        print(f"  ⚠️ File not found for {period}, skipping")
-                        skipped_count += 1
-                        continue
+                        # Fail fast - missing data file
+                        raise FileNotFoundError(
+                            f"❌ File not found for period {period}\n"
+                            f"  Expected: {FILES_DIR / file_meta.get('path', '')}\n"
+                            f"  Searched pattern: {FILES_DIR}/{pattern}\n"
+                            f"  Ensure scrapy download completed successfully."
+                        )
 
                 import_rtt_period(period, file_path, registry, check_only=check_only)
                 imported_count += 1
