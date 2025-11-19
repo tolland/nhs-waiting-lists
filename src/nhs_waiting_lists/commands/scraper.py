@@ -22,10 +22,17 @@ def scraper_callback(ctx: typer.Context):
 @app.command("list")
 def list_scrapers(
         ctx: typer.Context,
-        language: Optional[str] = typer.Option(None, "--language", "-l"),
-        gender: Optional[str] = typer.Option(None, "--gender", "-g"),
 ):
-    typer.echo(f"Listing the scrapers ....")
+    """
+    List all available data scrapers.
+    """
+    typer.echo("Available scrapers:")
+    typer.echo("")
+    typer.echo("  rtt                    - RTT waiting times (monthly, per-provider, per-specialty)")
+    typer.echo("  outpatients-activity   - Outpatient attendance data (yearly, per-provider)")
+    typer.echo("  providers              - NHS Oversight Framework provider metadata")
+    typer.echo("")
+    typer.echo("Usage: nhsctl scraper <scraper-name>")
 
 @app.command("outpatients-activity")
 def outpatients_activity(
@@ -60,12 +67,13 @@ def scrape_providers(
         ctx: typer.Context,
 ):
     """
-    Scrape the list of providers (nhs and external). This information is used to
-    provide more information about the provider codes being referenced in the
-    other series.
+    Scrape the NHS Oversight Framework provider metadata CSV. This information is
+    used to provide more information about the provider codes being referenced in
+    the RTT and outpatient activity datasets, including trust type, region, and
+    performance metrics.
     """
 
     process = CrawlerProcess(get_project_settings())
 
-    process.crawl("providers")
+    process.crawl("provider-oversight")
     process.start()
