@@ -2,17 +2,25 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich import inspect
-from typing_extensions import Annotated
-
-
-from sqlalchemy import create_engine
-
+from nhs_waiting_lists import (
+    __app_name__,
+)
+from nhs_waiting_lists.constants import proj_db_path, DB_FILE
 from nhs_waiting_lists.importer.providers import load_providers
+from nhs_waiting_lists.importer.rtt import import_all_rtt_from_jsonl
 from nhs_waiting_lists.utils.proj_paths import find_project_root
 from nhs_waiting_lists.utils.utils import get
+from nhs_waiting_lists.utils.xdg import XDGBasedir
+from rich import inspect
+from sqlalchemy import create_engine
+from typing_extensions import Annotated
+
+project_root = Path(XDGBasedir.get_data_dir(__app_name__))
+
+DB_PATH = project_root / proj_db_path / DB_FILE
 
 app = typer.Typer(name="import", no_args_is_help=True)
+
 
 @app.callback()
 def importer_callback(ctx: typer.Context):
@@ -43,6 +51,7 @@ def local_file_parser(local_file: str):
 
     return local_file
 
+
 @app.command("excel")
 def excel_import(
     _ctx: typer.Context,
@@ -64,8 +73,8 @@ def excel_import(
     project_root = find_project_root()
     DB_PATH = project_root / "db/nhs_rttwtd.db"
 
-
     conn = create_engine(f"sqlite:///{DB_PATH}", echo=True)
+
 
 @app.command("providers")
 def import_providers(
@@ -96,3 +105,31 @@ def import_providers(
         raise typer.Exit(1)
 
     load_providers()
+
+    conn = create_engine(f"sqlite:///{DB_PATH}", echo=True)
+
+
+@app.command("rtt")
+def import_rtt(
+    _ctx: typer.Context,
+    start_period: Annotated[
+        Optional[str],
+        typer.Option("--start-period", help="Start period in YYYY-MM format")
+    ] = None,
+    end_period: Annotated[
+        Optional[str],
+        typer.Option("--end-period", help="End period in YYYY-MM format")
+    ] = None,
+):
+    """
+    Import rtt data, optionally restricted to period ranges
+    """
+
+    print(f"in the rtt callback start_period={start_period}")
+
+    import_all_rtt_from_jsonl(
+        check_only=True,
+        start_period=start_period,
+        end_period=end_period,
+    )
+

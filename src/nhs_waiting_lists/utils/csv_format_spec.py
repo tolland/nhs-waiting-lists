@@ -44,7 +44,7 @@ class RTTFormatRegistry:
             start=date(2015, 4, 1),  # Adjust based on earliest data
             end=date(2017, 9, 30),
             spec=CSVFormatSpec(
-                skiprows=3,  # Skip the frontmatter lines
+                skiprows=2,  # Skip the frontmatter lines
                 column_mapping={
                     'Period Name': 'Period',
                     'RTT Part Name': 'RTT Part Type',
