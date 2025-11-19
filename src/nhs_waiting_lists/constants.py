@@ -5,6 +5,19 @@ import numpy as np
 
 proj_db_path = "db"
 
+# Database filenames for different processing stages
+# Staging databases (can be dropped after QA/import)
+DB_RTT_STAGING = "rtt_staging.db"  # Raw CSV dumps with all columns
+
+# Production databases
+DB_RTT = "rtt.db"  # Cleaned all_rtt table (grouped by provider)
+DB_PROVIDERS = "providers.db"  # Provider metadata
+DB_OUTPATIENTS = "outpatients.db"  # Outpatient activity
+DB_CONSOLIDATED = "consolidated.db"  # Derived metrics and aggregations
+
+# Legacy DB name for backwards compatibility
+DB_LEGACY = "nhs_provider_data2.db"  # Used by existing queries/migrations
+
 # main column names common across all parts
 base_col_names = [
     'period',

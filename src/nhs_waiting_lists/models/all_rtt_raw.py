@@ -1,18 +1,58 @@
 from typing import Optional
 
-from sqlalchemy import Integer, Text
+from sqlalchemy import Integer, Text, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from nhs_waiting_lists.models.base import Base
 
 
-class AllRtt(Base):
-    __tablename__ = "all_rtt"
+class AllRttRaw(Base):
+    """
+    Raw RTT waiting times data from CSV files - minimal cleaning.
 
+    This table stores the raw CSV data with all original columns including
+    commissioner and parent organization data. Used for data quality checks
+    before aggregating to the all_rtt table (which groups by provider only).
+
+    Key differences from all_rtt:
+    - Includes commissioner org columns (dropped during aggregation)
+    - Includes parent org columns
+    - Includes status column
+    - Includes QA check columns (wait_sum, diff_total, diff_total_all)
+    - Primary key includes commissioner_org_code (not grouped yet)
+
+    Format changes:
+    - Pre-Oct 2017: Has fiscal year format, needs conversion
+    - Pre-Apr 2021: Only has weeks 0-52 + gt_52_weeks bucket
+    - Apr 2021+: Has weeks 0-104 + gt_104_weeks bucket
+    """
+    __tablename__ = "all_rtt_raw"
+
+    # Primary key - includes commissioner to preserve all rows before grouping
     period: Mapped[str] = mapped_column(Text, primary_key=True)
     provider_org_code: Mapped[str] = mapped_column(Text, primary_key=True)
     rtt_part_type: Mapped[str] = mapped_column(Text, primary_key=True)
     treatment_function_code: Mapped[str] = mapped_column(Text, primary_key=True)
+    commissioner_org_code: Mapped[str] = mapped_column(Text, primary_key=True)
+
+    # Provider organization info
+    provider_org_name: Mapped[Optional[str]] = mapped_column(Text)
+    provider_parent_org_code: Mapped[Optional[str]] = mapped_column(Text)
+    provider_parent_name: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Commissioner organization info (causes duplicate providers)
+    commissioner_org_name: Mapped[Optional[str]] = mapped_column(Text)
+    commissioner_parent_org_code: Mapped[Optional[str]] = mapped_column(Text)
+    commissioner_parent_name: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Treatment info
+    treatment_function_name: Mapped[Optional[str]] = mapped_column(Text)
+    rtt_part_description: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Status column
+    status: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Waiting time buckets (0-104 weeks)
     gt_00_to_01_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_01_to_02_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_02_to_03_weeks: Mapped[Optional[int]] = mapped_column(Integer)
@@ -65,6 +105,9 @@ class AllRtt(Base):
     gt_49_to_50_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_50_to_51_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_51_to_52_weeks: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # Extended buckets (52-104 weeks) - only in newer data (Apr 2021+)
+    # For old data, these will be NULL and gt_52_weeks will be populated
     gt_52_to_53_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_53_to_54_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_54_to_55_weeks: Mapped[Optional[int]] = mapped_column(Integer)
@@ -119,14 +162,16 @@ class AllRtt(Base):
     gt_103_to_104_weeks: Mapped[Optional[int]] = mapped_column(Integer)
     gt_104_weeks: Mapped[Optional[int]] = mapped_column(Integer)
 
-    # Aggregate field for 52+ weeks to handle format changes
-    # Pre-Apr 2021: populated from CSV's "Gt 52 Weeks" column
-    # Apr 2021+: computed as SUM(gt_52_to_53_weeks through gt_104_weeks)
-    # This allows consistent queries across old and new data formats
+    # Legacy bucket for old data (pre-Apr 2021)
+    # In old CSVs this was the final bucket "52 weeks and greater"
     gt_52_weeks: Mapped[Optional[int]] = mapped_column(Integer)
 
-    patients_with_unknown_clock_start_date: Mapped[Optional[int]] = mapped_column(
-        Integer
-    )
+    # Summary columns
+    patients_with_unknown_clock_start_date: Mapped[Optional[int]] = mapped_column(Integer)
     total: Mapped[Optional[int]] = mapped_column(Integer)
     total_all: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # QA/validation columns (computed during import for integrity checks)
+    wait_sum: Mapped[Optional[int]] = mapped_column(Integer)  # Sum of all wait buckets
+    diff_total: Mapped[Optional[int]] = mapped_column(Integer)  # wait_sum - total (should be ~0)
+    diff_total_all: Mapped[Optional[int]] = mapped_column(Integer)  # wait_sum - total_all + unknown (should be ~0)
