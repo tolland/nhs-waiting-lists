@@ -120,6 +120,10 @@ def import_rtt(
         Optional[str],
         typer.Option("--end-period", help="End period in YYYY-MM format")
     ] = None,
+    check_only: Annotated[
+        Optional[bool],
+        typer.Option("--check-only", help="Check only, do not import")
+    ] = False,
 ):
     """
     Import rtt data, optionally restricted to period ranges
@@ -128,7 +132,7 @@ def import_rtt(
     print(f"in the rtt callback start_period={start_period}")
 
     import_all_rtt_from_jsonl(
-        check_only=True,
+        check_only=check_only,
         start_period=start_period,
         end_period=end_period,
     )

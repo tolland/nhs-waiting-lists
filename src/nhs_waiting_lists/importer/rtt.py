@@ -68,6 +68,11 @@ def load_rtt_csv_from_zip(zip_path: Path, period: str, registry: RTTFormatRegist
     if spec.column_mapping:
         df = df.rename(columns=spec.column_mapping)
 
+    if spec.column_concat:
+        for col, cols in spec.column_concat.items():
+            df[col] = df[cols].astype(str).agg("-".join, axis=1)
+            df.drop(columns=cols, inplace=True)
+
     # Clean column names
     df.columns = (df.columns
                   .str.strip()
