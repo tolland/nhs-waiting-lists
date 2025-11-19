@@ -5,18 +5,22 @@ import numpy as np
 
 proj_db_path = "db"
 
-# Database filenames for different processing stages
-# Staging databases (can be dropped after QA/import)
-DB_RTT_STAGING = "rtt_staging.db"  # Raw CSV dumps with all columns
+# Primary database file - contains all tables
+DB_FILE = "nhs_waiting_lists.db"
 
-# Production databases
-DB_RTT = "rtt.db"  # Cleaned all_rtt table (grouped by provider)
-DB_PROVIDERS = "providers.db"  # Provider metadata
-DB_OUTPATIENTS = "outpatients.db"  # Outpatient activity
-DB_CONSOLIDATED = "consolidated.db"  # Derived metrics and aggregations
+# Table organization:
+# Staging tables (can be truncated/dropped after QA):
+#   - all_rtt_raw: Raw CSV dumps with all columns, minimal cleaning
+#
+# Production tables:
+#   - all_rtt: Cleaned RTT data (grouped by provider)
+#   - consolidated: Derived metrics from all_rtt
+#   - providers: Provider metadata
+#   - outpatients_activity: Outpatient attendance data
+#   - v_consolidated: View joining consolidated + providers
 
-# Legacy DB name for backwards compatibility
-DB_LEGACY = "nhs_provider_data2.db"  # Used by existing queries/migrations
+# Legacy DB name for backwards compatibility with existing notebooks
+DB_LEGACY = "nhs_provider_data2.db"
 
 # main column names common across all parts
 base_col_names = [
