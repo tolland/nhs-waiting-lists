@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +23,49 @@ DB_PATH = project_root / proj_db_path / DB_FILE
 FILES_DIR = project_root / "files"
 
 engine = create_engine(f"sqlite:///{DB_PATH}")
+
+
+def get_sqlite_max_variables() -> int:
+    """
+    Detect SQLITE_MAX_VARIABLE_NUMBER for the current SQLite version.
+
+    Returns 999 for old SQLite or 32766 for SQLite 3.32.0+
+    """
+    conn = sqlite3.connect(":memory:")
+    cursor = conn.cursor()
+    # Try to get the limit by attempting a query with known parameters
+    # SQLite default is 999 for old versions, 32766 for 3.32.0+
+    try:
+        # Check SQLite version
+        cursor.execute("SELECT sqlite_version()")
+        version = cursor.fetchone()[0]
+        major, minor, patch = map(int, version.split('.'))
+
+        # SQLite 3.32.0+ has higher limit
+        if (major, minor, patch) >= (3, 32, 0):
+            return 32766
+        else:
+            return 999
+    finally:
+        conn.close()
+
+
+def calculate_optimal_chunksize(num_columns: int, safety_factor: float = 0.9) -> int:
+    """
+    Calculate optimal chunksize for pandas to_sql with method='multi'.
+
+    Args:
+        num_columns: Number of columns in the DataFrame
+        safety_factor: Safety margin (default 0.9 = 90% of limit)
+
+    Returns:
+        Optimal chunksize that won't exceed SQLITE_MAX_VARIABLE_NUMBER
+    """
+    max_vars = get_sqlite_max_variables()
+    # Calculate: chunksize = max_vars / num_columns, with safety factor
+    optimal = int((max_vars / num_columns) * safety_factor)
+    # Ensure at least 1 row per chunk
+    return max(1, optimal)
 
 """
 NHS RTT Data Importer
@@ -179,15 +223,20 @@ def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry,
         print(f"  ✓ QA check complete (no issues)")
         return df
 
-    # Import to database
+    # Import to database with optimized bulk insert
+    num_columns = len(df.columns)
+    chunksize = calculate_optimal_chunksize(num_columns)
+    max_vars = get_sqlite_max_variables()
+
+    print(f"  Bulk insert: {num_columns} columns, chunksize={chunksize} (SQLite limit: {max_vars} variables)")
+
     df.to_sql(
         name="all_rtt_raw",
         con=engine,
         if_exists="append",
         index=False,
-        # @TODO exceeds parameter count limit
-        # method='multi',
-        # chunksize=100,
+        method='multi',
+        chunksize=chunksize
     )
 
     print(f"  ✓ Imported {len(df):,} rows")
