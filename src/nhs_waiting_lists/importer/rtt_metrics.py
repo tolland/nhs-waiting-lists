@@ -1,5 +1,7 @@
 from pathlib import Path
+from typing import Optional
 
+import numpy as np
 import pandas as pd
 from nhs_waiting_lists import (
     __app_name__,
@@ -28,7 +30,11 @@ Converts long format to wide format. One row per-provider, per-period, per-speci
 """
 
 
-def import_rtt_to_rtt_metrics():
+def import_rtt_to_rtt_metrics(
+    start_period: Optional[str] = None,
+    end_period: Optional[str] = None,
+    check_only: bool = False,
+):
     query = text(
         """
                  SELECT provider_org_code                      AS provider,
@@ -45,45 +51,79 @@ def import_rtt_to_rtt_metrics():
         engine,
     )
 
+    print(f"Loaded {len(df)} rows from all_rtt_raw")
+    pd.set_option("display.max_columns", None)
+    print(f"Col names: {df.columns}")
+    print(df.head())
+    all_columns = list(df.columns)
+    print("All column names:")
+    print(all_columns)
+
     # fuil csv data includes per-commissioning org rows.
     # to reproduce the xlsx data, we sum the per-commissioning-org rows.
-    df = (
-        df.groupby(group_cols, as_index=False)[numeric_cols]
-        .sum()
+    df = df.groupby(group_cols, as_index=False)[numeric_cols].sum()
+
+    df = df.rename(
+        columns={
+            "provider_org_code": "provider",
+            "treatment_function_code": "treatment",
+            "patients_with_unknown_clock_start_date": "unknown_clock_start",
+        },
     )
 
-    df["wait_lt_18"] = df[wait_ranges_lt_18].sum(axis=1, skipna=False)
-    df["wait_gte_18"] = df[wait_ranges_gte_18].sum(axis=1, skipna=False)
+    # @TODO somewhere these are being coerced to zero, rather than NaN
+    # this is messing up the wait_sum calculation
+    df["wait_lt_18"] = np.where(
+        df["rtt_part_type"].isin(["Part_3"]),
+        np.nan,
+        df[wait_ranges_lt_18].sum(axis=1, skipna=False),
+    )
+    df["wait_gte_18"] = np.where(
+        df["rtt_part_type"].isin(["Part_3"]),
+        np.nan,
+        df[wait_ranges_gte_18].sum(axis=1, skipna=False),
+    )
     df["wait_sum"] = df["wait_lt_18"] + df["wait_gte_18"]
+
     df["wait_pct_lt_18"] = df["wait_lt_18"] / df["wait_sum"]
     df["wait_diff"] = df["wait_sum"] - df["total_all"]
 
-    df.query("provider == 'RAJ' and treatment == 'C_320' and period == '2025-08'")
-
     # 2. Pivot to wide form
-    df_wide = (
-        df.copy()
-        .assign(
-            rtt_part_type=lambda d: d["rtt_part_type"].map({
+    df_wide1 = df.copy().assign(
+        rtt_part_type=lambda d: d["rtt_part_type"].map(
+            {
                 "Part_1A": "admitted",
                 "Part_1B": "nonadmitted",
                 "Part_2": "incomplete",
                 "Part_2A": "incomplete_dta",
                 "Part_3": "new_periods",
-            })
+            }
         )
-        .pivot_table(
-            index=[
-                "period",
-                "provider",
-                "treatment",
-            ],
-            columns=["rtt_part_type"],
-            values=["total_all", "wait_lt_18", "wait_gte_18", "wait_sum", "wait_diff","wait_pct_lt_18"],
-            aggfunc="first"
-        )
-        .reset_index()
     )
+
+    # print(df_wide1.head())
+    all_columns = list(df_wide1.columns)
+    print("All column names:")
+    print(all_columns)
+
+    df_wide = df_wide1.pivot_table(
+        index=[
+            "period",
+            "provider",
+            "treatment",
+        ],
+        columns=["rtt_part_type"],
+        values=[
+            "total_all",
+            "wait_lt_18",
+            "wait_gte_18",
+            "wait_sum",
+            "wait_diff",
+            "wait_pct_lt_18",
+        ],
+        aggfunc="first",
+    ).reset_index()
+
     # df_wide["wait_lt_18"] = df.groupby(["period", "provider", "treatment"])["wait_lt_18"].first().values
     # df_wide["wait_gte_18"] = df.groupby(["period", "provider", "treatment"])["wait_gte_18"].first().values
     # df_wide = df_wide.merge(
@@ -165,12 +205,12 @@ def import_rtt_to_rtt_metrics():
     table_name = "consolidated"
 
     # Get column names
-    columns = list(df.columns)
+    columns = list(df_wide.columns)
     placeholders = ", ".join(["?" for _ in columns])
     column_names = ", ".join(columns)
 
     # Insert data row by row using INSERT OR REPLACE
-    for _, row in df.iterrows():
+    for _, row in df_wide.iterrows():
         values = [row[col] for col in columns]
         insert_sql = f"INSERT OR REPLACE INTO {table_name} ({column_names}) VALUES ({placeholders})"
         try:
@@ -183,4 +223,4 @@ def import_rtt_to_rtt_metrics():
             raise e
 
     connection.commit()
-    print(f"Loaded {len(df)} rows into {table_name}")
+    print(f"Loaded {len(df_wide)} rows into {table_name}")

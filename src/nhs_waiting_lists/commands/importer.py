@@ -8,6 +8,7 @@ from nhs_waiting_lists import (
 from nhs_waiting_lists.constants import proj_db_path, DB_FILE
 from nhs_waiting_lists.importer.providers import load_providers
 from nhs_waiting_lists.importer.rtt import import_all_rtt_from_jsonl
+from nhs_waiting_lists.importer.rtt_metrics import import_rtt_to_rtt_metrics
 from nhs_waiting_lists.utils.proj_paths import find_project_root
 from nhs_waiting_lists.utils.utils import get
 from nhs_waiting_lists.utils.xdg import XDGBasedir
@@ -25,7 +26,7 @@ app = typer.Typer(name="import", no_args_is_help=True)
 @app.callback()
 def importer_callback(ctx: typer.Context):
     # inspect(ctx.obj, title="inspecting ctx.obj in voices callback")
-    typer.echo(f"in the providers callback")
+    typer.echo(f"in the importer callback")
 
 
 def local_file_parser(local_file: str):
@@ -129,9 +130,39 @@ def import_rtt(
     Import rtt data, optionally restricted to period ranges
     """
 
-    print(f"in the rtt callback start_period={start_period}")
+    print(f"in the rtt callback {start_period=} {end_period=}")
 
     import_all_rtt_from_jsonl(
+        check_only=check_only,
+        start_period=start_period,
+        end_period=end_period,
+    )
+
+
+@app.command("rtt-metrics")
+def import_rtt(
+    _ctx: typer.Context,
+    start_period: Annotated[
+        Optional[str],
+        typer.Option("--start-period", help="Start period in YYYY-MM format")
+    ] = None,
+    end_period: Annotated[
+        Optional[str],
+        typer.Option("--end-period", help="End period in YYYY-MM format")
+    ] = None,
+    check_only: Annotated[
+        Optional[bool],
+        typer.Option("--check-only", help="Check only, do not import")
+    ] = False,
+):
+    """
+    Convert the long format into wide with summarized types and aggregated by
+    provider, parent org, commissioning org
+    """
+
+    print(f"in the rtt-metrics callback start_period={start_period}")
+
+    import_rtt_to_rtt_metrics(
         check_only=check_only,
         start_period=start_period,
         end_period=end_period,
