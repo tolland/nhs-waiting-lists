@@ -48,11 +48,13 @@ unknown_start_clock_cols = [
 # before that it was 52 weeks, and a 52-week and greater bucket
 wait_ranges = [f"gt_{n:02}_to_{n + 1:02}_weeks" for n in range(104)]
 wait_ranges.append("gt_104_weeks")
+wait_ranges.append("gt_52_weeks")
 
 
 wait_ranges_lt_18 = [f"gt_{n:02}_to_{n + 1:02}_weeks" for n in range(18)]
 wait_ranges_gte_18 = [f"gt_{n:02}_to_{n + 1:02}_weeks" for n in range(18,104)]
 wait_ranges_gte_18.append("gt_104_weeks")
+wait_ranges_gte_18.append("gt_52_weeks")
 
 # all the columns used to calculate the totals_all value
 totals_all_cols = wait_ranges + unknown_start_clock_cols

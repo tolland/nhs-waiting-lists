@@ -4,6 +4,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+import numpy as np
 
 import pandas as pd
 import numpy as np
@@ -196,7 +197,7 @@ def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry,
     Returns:
         DataFrame if check_only=True, None otherwise
     """
-    print(f"Processing {period}: {file_path.name}")
+    print(f"Importing period {period}: {file_path.name}")
 
     # Load CSV with format detection
     df = load_rtt_csv_from_zip(file_path, period, registry)
@@ -292,7 +293,7 @@ def import_all_rtt_from_jsonl(
                 if not period:
                     continue
 
-                print(f"Processing {period}: {file_meta.get('filename')}")
+                print(f"Processing {period} ({start_period}/{end_period}): {file_meta.get('filename')}")
 
                 # Apply period filters
                 if start_period and period < start_period:
