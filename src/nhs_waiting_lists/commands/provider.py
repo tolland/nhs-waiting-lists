@@ -8,15 +8,10 @@ from rich.table import Table
 from sqlalchemy import create_engine
 from sqlalchemy import text, bindparam
 
-from nhs_waiting_lists.constants import proj_db_path, PROVIDER_CODES
-from nhs_waiting_lists.utils.proj_paths import find_project_root
-
-# from bacula_ctl.core.main import BaculaCtlCore
+from nhs_waiting_lists.constants import proj_db_path, LARGE_ACUTE_PROVIDER_CODES
+from nhs_waiting_lists.utils.utils import find_project_root
 
 app = typer.Typer(name="provider", no_args_is_help=True)
-
-# Create the core
-# core = BaculaCtlCore()
 
 
 @app.callback()
@@ -27,16 +22,16 @@ def providers_callback(ctx: typer.Context):
 
 @app.command("list")
 def list_providers(
-        ctx: typer.Context,
-        language: Optional[str] = typer.Option(None, "--language", "-l"),
-        gender: Optional[str] = typer.Option(None, "--gender", "-g"),
+    ctx: typer.Context,
+    language: Optional[str] = typer.Option(None, "--language", "-l"),
+    gender: Optional[str] = typer.Option(None, "--gender", "-g"),
 ):
     typer.echo(f"Listing the providers ....")
 
 
 @app.command("report")
 def providers_report(
-        ctx: typer.Context,
+    ctx: typer.Context,
 ):
     typer.echo(f"reporting the providers ....")
 
@@ -81,7 +76,7 @@ def providers_report(
         query,
         conn,
         params={  # type: ignore[arg-type]
-            "provider_codes": PROVIDER_CODES,
+            "provider_codes": LARGE_ACUTE_PROVIDER_CODES,
         },
     )
     # df.query("provider == 'RAJ' and treatment == 'C_999' and period == '2025-08'")
