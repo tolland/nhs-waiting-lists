@@ -14,6 +14,7 @@ class CSVFormatSpec:
     header: int = 0
     column_mapping: Optional[Dict[str, str]] = None  # Old name -> new name
     column_concat: Optional[Dict[str, List[str]]] = None
+    cols_to_drop: Optional[List[str]] = None
     date_format: Optional[str] = None
     # New: identifier for format detection
     format_name: str = "default"
@@ -45,7 +46,7 @@ class RTTFormatRegistry:
             spec=CSVFormatSpec(
                 skiprows=2,  # Skip the frontmatter lines
                 column_mapping={
-                    "RTT Part Name": "RTT Part Type",
+                    "RTT Part Name": "pathway",
                 },
                 column_concat={"Period": ["Year", "Period Name"]},
                 format_name="pre_july_2016",
@@ -57,9 +58,9 @@ class RTTFormatRegistry:
             spec=CSVFormatSpec(
                 skiprows=2,  # Skip the frontmatter lines
                 column_mapping={
-                    "Treatment Function Name": "Treatment Function Code",
+                    "Treatment Function Name": "treatment",
                     "Treatment Function Description": "Treatment Function Name",
-                    "RTT Part Name": "RTT Part Type",
+                    "RTT Part Name": "pathway",
                 },
                 column_concat={"Period": ["Year", "Period Name"]},
                 format_name="july_2016",
@@ -71,18 +72,37 @@ class RTTFormatRegistry:
             spec=CSVFormatSpec(
                 skiprows=2,  # Skip the frontmatter lines
                 column_mapping={
-                    "RTT Part Name": "RTT Part Type",
+                    "RTT Part Name": "pathway",
                 },
                 column_concat={"Period": ["Year", "Period Name"]},
                 format_name="pre_oct_2017",
             ),
         )
 
-        # October 2017 onwards: clean format
+        # October 2017 onwards: clean format, assumed ongoing
         self.register(
             start=date(2017, 10, 1),
             end=date(2099, 12, 31),  # Open-ended
-            spec=CSVFormatSpec(format_name="post_oct_2017"),
+            spec=CSVFormatSpec(
+                format_name="post_oct_2017",
+                column_mapping={
+                    "Treatment Function Code": "treatment",
+                    "RTT Part Type": "pathway",
+                    "Provider Org Code": "provider",
+                    "Provider Parent Org Code": "provider_parent",
+                    "Commissioner Parent Org Code": "commissioner_parent",
+                    "Commissioner Org Code": "commissioner",
+                    "Patients with unknown clock start date": "unknown_start",
+                },
+                cols_to_drop=[
+                    "Provider Parent Name",
+                    "Provider Org Name",
+                    "Commissioner Parent Name",
+                    "Commissioner Org Name",
+                    "RTT Part Description",
+                    "Treatment Function Name",
+                ],
+            ),
         )
 
     def register(self, start: date, end: date, spec: CSVFormatSpec):

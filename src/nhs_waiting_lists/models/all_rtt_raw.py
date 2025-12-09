@@ -30,24 +30,32 @@ class AllRttRaw(Base):
 
     # Primary key - includes commissioner to preserve all rows before grouping
     period: Mapped[str] = mapped_column(Text, primary_key=True)
-    provider_org_code: Mapped[str] = mapped_column(Text, primary_key=True)
-    rtt_part_type: Mapped[str] = mapped_column(Text, primary_key=True)
-    treatment_function_code: Mapped[str] = mapped_column(Text, primary_key=True)
-    commissioner_org_code: Mapped[str] = mapped_column(Text, primary_key=True)
+    provider: Mapped[str] = mapped_column(Text, primary_key=True)
+    pathway: Mapped[str] = mapped_column(Text, primary_key=True)
+    treatment: Mapped[str] = mapped_column(Text, primary_key=True)
+    commissioner: Mapped[str] = mapped_column(Text, primary_key=True)
 
-    # Provider organization info
-    provider_org_name: Mapped[Optional[str]] = mapped_column(Text)
-    provider_parent_org_code: Mapped[Optional[str]] = mapped_column(Text)
-    provider_parent_name: Mapped[Optional[str]] = mapped_column(Text)
-
-    # Commissioner organization info (causes duplicate providers)
-    commissioner_org_name: Mapped[Optional[str]] = mapped_column(Text)
-    commissioner_parent_org_code: Mapped[Optional[str]] = mapped_column(Text)
-    commissioner_parent_name: Mapped[Optional[str]] = mapped_column(Text)
+    # descriptive pathway info
+    # @TODO normalize to infos table.
+    # rtt_part_description: Mapped[Optional[str]] = mapped_column(Text)
 
     # Treatment info
-    treatment_function_name: Mapped[Optional[str]] = mapped_column(Text)
-    rtt_part_description: Mapped[Optional[str]] = mapped_column(Text)
+    # @TODO normalize to infos table.
+    # treatment_function_name: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Provider organization info
+    # @TODO normalize to infos table.
+    # provider_org_name: Mapped[Optional[str]] = mapped_column(Text)
+    provider_parent: Mapped[Optional[str]] = mapped_column(Text)
+    # @TODO normalize to infos table.
+    # provider_parent_name: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Commissioner organization info (causes duplicate providers)
+    # @TODO normalize to infos table.
+    # commissioner_org_name: Mapped[Optional[str]] = mapped_column(Text)
+    commissioner_parent: Mapped[Optional[str]] = mapped_column(Text)
+    # @TODO normalize to infos table.
+    # commissioner_parent_name: Mapped[Optional[str]] = mapped_column(Text)
 
     # Status column
     status: Mapped[Optional[str]] = mapped_column(Text)
@@ -167,7 +175,7 @@ class AllRttRaw(Base):
     gt_52_weeks: Mapped[Optional[int]] = mapped_column(Integer)
 
     # Summary columns
-    patients_with_unknown_clock_start_date: Mapped[Optional[int]] = mapped_column(Integer)
+    unknown_start: Mapped[Optional[int]] = mapped_column(Integer)
     total: Mapped[Optional[int]] = mapped_column(Integer)
     total_all: Mapped[Optional[int]] = mapped_column(Integer)
 

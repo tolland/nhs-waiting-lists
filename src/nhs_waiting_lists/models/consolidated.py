@@ -24,13 +24,15 @@ class Consolidated(Base):
     admitted_prev: Mapped[Optional[int]] = mapped_column(Integer)
     new_periods_prev: Mapped[Optional[int]] = mapped_column(Integer)
     nonadmitted_prev: Mapped[Optional[int]] = mapped_column(Integer)
-    treated: Mapped[Optional[int]] = mapped_column(Integer)
-    treated_prev: Mapped[Optional[int]] = mapped_column(Integer)
-    wait_diff: Mapped[Optional[int]] = mapped_column(Integer)
+    total_treatable: Mapped[Optional[int]] = mapped_column(Integer)
+    completed: Mapped[Optional[int]] = mapped_column(Integer)
+    completed_prev: Mapped[Optional[int]] = mapped_column(Integer)
     wait_gte_18: Mapped[Optional[int]] = mapped_column(Integer)
     wait_lt_18: Mapped[Optional[int]] = mapped_column(Integer)
-    wait_sum: Mapped[Optional[int]] = mapped_column(Integer)
     wait_pct_lt_18: Mapped[Optional[int]] = mapped_column(Integer)
+    # wait_pct_gte_18: Mapped[Optional[int]] = mapped_column(Integer)
+    wait_diff: Mapped[Optional[int]] = mapped_column(Integer)
+    wait_sum: Mapped[Optional[int]] = mapped_column(Integer)
 
     # def __repr__(self) -> str:
     #     return f"User(id={self.id!r}, name={self.name!r}, fullname={self.fullname!r})"
