@@ -1,5 +1,3 @@
-import sys
-import numpy as np
 # utils and constants for processing rtt wtd full csv data
 
 
@@ -19,29 +17,23 @@ DB_FILE = "nhs_waiting_lists.db"
 #   - outpatients_activity: Outpatient attendance data
 #   - v_consolidated: View joining consolidated + providers
 
-# Legacy DB name for backwards compatibility with existing notebooks
-DB_LEGACY = "nhs_provider_data2.db"
-
 # main column names common across all parts
 base_col_names = [
-    'period',
-    'provider_org_code',
-    'provider_org_name',
-    'rtt_part_type',
-    'rtt_part_description',
-    'treatment_function_code',
-    'treatment_function_name'
+    "period",
+    "provider",
+    "provider_org_name",
+    "pathway",
+    "rtt_part_description",
+    "treatment",
+    "treatment_function_name",
 ]
 
 # numeric summary columns
-summary_col_names = [
-    'total',
-    'total_all'
-]
+summary_col_names = ["total", "total_all"]
 
 # columns with unknown start clock dates. i.e. not in waiting lists
 unknown_start_clock_cols = [
-    'patients_with_unknown_clock_start_date',
+    "unknown_start",
 ]
 
 # From April 2021 nhs england collected up to 104 weeks of waiting
@@ -52,7 +44,7 @@ wait_ranges.append("gt_52_weeks")
 
 
 wait_ranges_lt_18 = [f"gt_{n:02}_to_{n + 1:02}_weeks" for n in range(18)]
-wait_ranges_gte_18 = [f"gt_{n:02}_to_{n + 1:02}_weeks" for n in range(18,104)]
+wait_ranges_gte_18 = [f"gt_{n:02}_to_{n + 1:02}_weeks" for n in range(18, 104)]
 wait_ranges_gte_18.append("gt_104_weeks")
 wait_ranges_gte_18.append("gt_52_weeks")
 
@@ -66,50 +58,62 @@ wait_cols = wait_ranges + summary_col_names
 all_cols = base_col_names + wait_cols + unknown_start_clock_cols
 
 # all the waiting time bucket columns plus unknown start clock columns
-numeric_cols =  wait_ranges + unknown_start_clock_cols + summary_col_names
+numeric_cols = wait_ranges + unknown_start_clock_cols + summary_col_names
 
 # used for generating the table schema
 base_columns = [
     # "period TEXT NOT NULL CHECK(length(period) = 10)",
     "period TEXT NOT NULL",
-    "provider_org_code TEXT NOT NULL",
+    "provider TEXT NOT NULL",
     "provider_org_name TEXT NOT NULL",
-    "rtt_part_type TEXT NOT NULL",
+    "pathway TEXT NOT NULL",
     "rtt_part_description TEXT NOT NULL",
-    "treatment_function_code TEXT NOT NULL",
+    "treatment TEXT NOT NULL",
     "treatment_function_name TEXT NOT NULL",
 ]
 
 rtt_base_columns = [
     # "period TEXT NOT NULL CHECK(length(period) = 10)",
     "period TEXT NOT NULL",
-    "provider_org_code TEXT NOT NULL",
-    "rtt_part_type TEXT NOT NULL",
-    "treatment_function_code TEXT NOT NULL",
+    "provider TEXT NOT NULL",
+    "pathway TEXT NOT NULL",
+    "treatment TEXT NOT NULL",
 ]
 
 # cols used to aggregate providers who operate under multiple commissioning orgs
-group_cols = [
-    'period',
-    'provider_org_code',
-    'rtt_part_type',
-    'treatment_function_code'
-]
+group_cols = ["period", "provider", "pathway", "treatment"]
 
 # to extract the month from a period string
 MONTHS = {
-    "APRIL": 4, "MAY": 5, "JUNE": 6, "JULY": 7,
-    "AUGUST": 8, "SEPTEMBER": 9, "OCTOBER": 10,
-    "NOVEMBER": 11, "DECEMBER": 12,
-    "JANUARY": 1, "FEBRUARY": 2, "MARCH": 3,
+    "APRIL": 4,
+    "MAY": 5,
+    "JUNE": 6,
+    "JULY": 7,
+    "AUGUST": 8,
+    "SEPTEMBER": 9,
+    "OCTOBER": 10,
+    "NOVEMBER": 11,
+    "DECEMBER": 12,
+    "JANUARY": 1,
+    "FEBRUARY": 2,
+    "MARCH": 3,
 }
 
 
 # Month abbreviation to number mapping
 MONTH_MAP = {
-    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-    'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-    'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+    "Jan": "01",
+    "Feb": "02",
+    "Mar": "03",
+    "Apr": "04",
+    "May": "05",
+    "Jun": "06",
+    "Jul": "07",
+    "Aug": "08",
+    "Sep": "09",
+    "Oct": "10",
+    "Nov": "11",
+    "Dec": "12",
 }
 
 # 1. Map RTT part names to readable categories
@@ -118,10 +122,72 @@ map_names = {
     "Part_1B": "nonadmitted",
     "Part_2": "incomplete",
     "Part_2A": "incomplete_dta",
-    "Part_3": "new_period",
+    "Part_3": "new_periods",
 }
 
-PROVIDER_CODES = ['R0B', 'RAJ', 'RTH', 'RTE', "RTF", "RWF", "RTE", "REF", "RWH", "R0B", "RVJ", "RHW",
-                  "RDU", "RH8", "RWY", "RXC", "RL4", "RDE", "RXK", "RXR", "RJ2", "RN5", "RHU",
-                  "RGN", "RWP", "RWD", "RAJ"]
-TREATMENT_CODES = ('C_101', 'C_110', 'C_320', 'C_330', 'C_400', 'C_502', 'C_301', 'C_999')
+
+LARGE_ACUTE_PROVIDER_CODES = [
+    "R0B",
+    "RAJ",
+    "RDE",
+    "RDU",
+    "REF",
+    "RGN",
+    "RH8",
+    "RHU",
+    "RHW",
+    "RJ2",
+    "RL4",
+    "RN5",
+    "RTE",
+    "RTF",
+    "RVJ",
+    "RWD",
+    "RWF",
+    "RWH",
+    "RWP",
+    "RWY",
+    "RXC",
+    "RXK",
+    "RXR",
+]
+
+TREATMENT_CODES = (
+    "C_101",
+    "C_110",
+    "C_320",
+    "C_330",
+    "C_400",
+    "C_502",
+    "C_301",
+    "C_999",
+)
+
+
+ALL_TREATMENT_CODES = ("C_100", "C_101", "C_110", "C_120", "C_130",
+                       "C_140", "C_150", "C_160", "C_170", "C_300",
+                       "C_301", "C_320", "C_330", "C_340", "C_400",
+                       "C_410", "C_430", "C_502", "X02", "X03",
+                       "X04", "X05", "X06")
+
+TOTAL_ONLY_TREATMENT_CODES = ('C_999',)
+
+# PROVIDER_CODES = ['R0B', 'RAJ', 'RTH', 'RTE', "RTF", "RWF", "RTE", "REF",
+# "RWH", "R0B", "RVJ", "RHW", "RDU", "RH8",
+#                   "RWY",
+#                   "RXC", "RL4", "RDE", "RXK", "RXR", "RJ2", "RN5", "RHU",
+#                   "RGN", "RWP", "RWD", "RAJ", 'RTF', 'RXC']
+# # PROVIDER_COEDS = ('RAJ', 'RTH', 'RJZ', 'RH5', 'R0B', 'RTF', 'RXC')
+
+
+# large departments
+# TREATMENT_CODES = (
+#     'C_100',
+#     'C_101',
+#     'C_110',
+#     'C_320',
+#     'C_330',
+#     'C_400',
+#     'C_502',
+#     'C_301'
+# )
