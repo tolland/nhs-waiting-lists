@@ -372,7 +372,7 @@ def parse_period_data(period: str, force: bool = False):
         month_year = period
     else:
         print(f"Invalid period format: {period}. Use 'March 2024' or 'Mar24'")
-        return
+        raise typer.Exit(1)
 
     # File types to process
     file_types = [

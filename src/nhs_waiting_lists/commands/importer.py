@@ -6,11 +6,13 @@ from nhs_waiting_lists import (
     __app_name__,
 )
 from nhs_waiting_lists.constants import proj_db_path, DB_FILE
+from nhs_waiting_lists.importer.outpatient_activity import import_outpatient_activity_period
 from nhs_waiting_lists.importer.providers import load_providers
 from nhs_waiting_lists.importer.rtt import import_all_rtt_from_jsonl
 from nhs_waiting_lists.importer.rtt_metrics import import_rtt_to_rtt_metrics
-from nhs_waiting_lists.utils.proj_paths import find_project_root
-from nhs_waiting_lists.utils.utils import get
+from nhs_waiting_lists.importer.rtt_pathways import import_rtt_to_rtt_pathways
+from nhs_waiting_lists.utils.date_field_parsing import generate_periods
+from nhs_waiting_lists.utils.utils import get, find_project_root
 from nhs_waiting_lists.utils.xdg import XDGBasedir
 from rich import inspect
 from sqlalchemy import create_engine
@@ -110,7 +112,7 @@ def import_providers(
     conn = create_engine(f"sqlite:///{DB_PATH}", echo=True)
 
 
-@app.command("rtt")
+@app.command("rtt-raw")
 def import_rtt(
     _ctx: typer.Context,
     start_period: Annotated[
@@ -127,7 +129,7 @@ def import_rtt(
     ] = False,
 ):
     """
-    Import rtt data, optionally restricted to period ranges
+    Import the raw RTT data from csv files downloaded by the scrapy spider. This is the first stage of import. Prerequisite for further processing.
     """
 
     print(f"in the rtt callback {start_period=} {end_period=}")
@@ -160,7 +162,7 @@ def import_rtt(
     provider, parent org, commissioning org
     """
 
-    print(f"in the rtt-metrics callback start_period={start_period}")
+    print(f"in the rtt-metrics command method {start_period=} {end_period=}")
 
     import_rtt_to_rtt_metrics(
         check_only=check_only,
@@ -168,3 +170,75 @@ def import_rtt(
         end_period=end_period,
     )
 
+
+
+@app.command("rtt-pathways")
+def import_rtt_pathways(
+    _ctx: typer.Context,
+    start_period: Annotated[
+        Optional[str],
+        typer.Option("--start-period", help="Start period in YYYY-MM format")
+    ] = None,
+    end_period: Annotated[
+        Optional[str],
+        typer.Option("--end-period", help="End period in YYYY-MM format")
+    ] = None,
+    check_only: Annotated[
+        Optional[bool],
+        typer.Option("--check-only", help="Check only, do not import")
+    ] = False,
+):
+    """
+    Extract the pathways from the RTT data into dedicated tables.
+    admitted
+    nonadmitted
+    incomplete
+    new_periods
+    incomplete_with_dta
+    """
+
+    print(f"in the rtt-pathways command method {start_period=} {end_period=}")
+
+    import_rtt_to_rtt_pathways(
+        check_only=check_only,
+        start_period=start_period,
+        end_period=end_period,
+    )
+
+
+@app.command("outpatient-activity-raw")
+def import_outp_raw(
+    _ctx: typer.Context,
+    start_period: Annotated[
+        Optional[str],
+        typer.Option("--start-period", help="Start period in YYYY-MM format")
+    ] = "2023-04",
+    end_period: Annotated[
+        Optional[str],
+        typer.Option("--end-period", help="End period in YYYY-MM format")
+    ] = None,
+    check_only: Annotated[
+        Optional[bool],
+        typer.Option("--check-only", help="Check only, do not import")
+    ] = False,
+):
+    """
+    Parse the raw outpatient activity data from csv and xlsx files downloaded by the scrapy spider.
+    """
+
+    print(f"in the outpatients actitivity raw callback start_period={start_period}")
+
+    try:
+        periods = generate_periods(start_period, end_period)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Importing periods: {', '.join(periods)}")
+
+    for period in periods:
+        typer.echo(f"Processing period {period}...")
+        import_outpatient_activity_period(
+            check_only=check_only,
+            period=period,
+        )
