@@ -31,7 +31,7 @@ def load_providers():
     )
 
     df = df.rename(columns={
-        "Trust_code": "provider_code",
+        "Trust_code": "provider",
         "Trust_name": "provider_name",
         "Region": "region_name",
         "Trust_subtype": "subtype",
@@ -39,7 +39,7 @@ def load_providers():
     })
 
     df.to_sql(
-        name="providers",
+        name="provider",
         con=engine,
         if_exists="replace",
         index=False
