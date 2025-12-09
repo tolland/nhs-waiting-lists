@@ -4,19 +4,27 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-import numpy as np
 
-import pandas as pd
 import numpy as np
-from nhs_waiting_lists.utils.loader_utils import fiscal_to_calendar, fix_rtt_period
+import pandas as pd
 from sqlalchemy import create_engine
 
 from nhs_waiting_lists import (
     __app_name__,
 )
-from nhs_waiting_lists.constants import proj_db_path, DB_FILE, group_cols, numeric_cols, wait_ranges
-from nhs_waiting_lists.utils.xdg import XDGBasedir
+from nhs_waiting_lists.constants import (
+    proj_db_path,
+    DB_FILE,
+    map_names,
+)
+from nhs_waiting_lists.importer.rtt_qa import compute_qa_columns, check_qa_issues
 from nhs_waiting_lists.utils.csv_format_spec import RTTFormatRegistry
+from nhs_waiting_lists.utils.date_field_parsing import fix_rtt_period
+from nhs_waiting_lists.utils.sqlite_utils import (
+    calculate_optimal_chunksize,
+    get_sqlite_max_variables,
+)
+from nhs_waiting_lists.utils.xdg import XDGBasedir
 
 project_root = Path(XDGBasedir.get_data_dir(__app_name__))
 
@@ -26,61 +34,9 @@ FILES_DIR = project_root / "files"
 engine = create_engine(f"sqlite:///{DB_PATH}")
 
 
-def get_sqlite_max_variables() -> int:
-    """
-    Detect SQLITE_MAX_VARIABLE_NUMBER for the current SQLite version.
-
-    Returns 999 for old SQLite or 32766 for SQLite 3.32.0+
-    """
-    conn = sqlite3.connect(":memory:")
-    cursor = conn.cursor()
-    # Try to get the limit by attempting a query with known parameters
-    # SQLite default is 999 for old versions, 32766 for 3.32.0+
-    try:
-        # Check SQLite version
-        cursor.execute("SELECT sqlite_version()")
-        version = cursor.fetchone()[0]
-        major, minor, patch = map(int, version.split('.'))
-
-        # SQLite 3.32.0+ has higher limit
-        if (major, minor, patch) >= (3, 32, 0):
-            return 32766
-        else:
-            return 999
-    finally:
-        conn.close()
-
-
-def calculate_optimal_chunksize(num_columns: int, safety_factor: float = 0.9) -> int:
-    """
-    Calculate optimal chunksize for pandas to_sql with method='multi'.
-
-    Args:
-        num_columns: Number of columns in the DataFrame
-        safety_factor: Safety margin (default 0.9 = 90% of limit)
-
-    Returns:
-        Optimal chunksize that won't exceed SQLITE_MAX_VARIABLE_NUMBER
-    """
-    max_vars = get_sqlite_max_variables()
-    # Calculate: chunksize = max_vars / num_columns, with safety factor
-    optimal = int((max_vars / num_columns) * safety_factor)
-    # Ensure at least 1 row per chunk
-    return max(1, optimal)
-
-"""
-NHS RTT Data Importer
-Imports RTT waiting times data downloaded from NHS into SQLite database
-
-Import stages:
-1. Raw import: CSV → all_rtt_raw table (staging, all columns)
-2. QA checks: Verify totals, check for discrepancies
-3. Aggregation: all_rtt_raw → all_rtt (group by provider, drop commissioner cols)
-4. Consolidation: all_rtt → consolidated (pivot + lag + derived metrics)
-"""
-
-
-def load_rtt_csv_from_zip(zip_path: Path, period: str, registry: RTTFormatRegistry) -> pd.DataFrame:
+def load_rtt_csv_from_zip(
+    zip_path: Path, period: str, registry: RTTFormatRegistry
+) -> pd.DataFrame:
     """
     Load RTT CSV from a zip file with format auto-detection.
 
@@ -95,14 +51,15 @@ def load_rtt_csv_from_zip(zip_path: Path, period: str, registry: RTTFormatRegist
     # Convert period to date for registry lookup
     period_date = datetime.strptime(period, "%Y-%m").date()
 
-    # Get format spec with fallback to file detection
+    # Get format spec
+    # @TODO don't fallback, it hides errors.
     spec = registry.get_spec_with_fallback(zip_path, period_date)
 
     print(f"  Format detected: {spec.format_name}")
 
     # Extract and read CSV from zip
-    with zipfile.ZipFile(zip_path, 'r') as zf:
-        csv_files = [name for name in zf.namelist() if name.endswith('.csv')]
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        csv_files = [name for name in zf.namelist() if name.endswith(".csv")]
         if not csv_files:
             raise ValueError(f"No CSV file found in {zip_path}")
 
@@ -119,72 +76,31 @@ def load_rtt_csv_from_zip(zip_path: Path, period: str, registry: RTTFormatRegist
             df[col] = df[cols].astype(str).agg("-".join, axis=1)
             df.drop(columns=cols, inplace=True)
 
+    if spec.cols_to_drop:
+        df.drop(columns=spec.cols_to_drop, inplace=True)
+
+
+    df = df.copy().assign(pathway=lambda d: d["pathway"].map(map_names))
+
     # fix mangled dates in Period column
     df["Period"] = df.apply(fix_rtt_period, axis=1)
 
     # Clean column names
-    df.columns = (df.columns
-                  .str.strip()
-                  .str.lower()
-                  .str.replace(" ", "_")
-                  .str.replace("[()€$]", "", regex=True)
-                  .str.replace("_sum_1", "")
-                  .str.replace("_sum", ""))
-
-    return df
-
-
-def compute_qa_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add QA validation columns to check data integrity.
-
-    Computes:
-    - wait_sum: Sum of all waiting time buckets
-    - diff_total: wait_sum - total (should be ~0 for Part_1A, Part_1B)
-    - diff_total_all: wait_sum - total_all + unknown (should be ~0)
-    """
-    df = df.copy()
-
-    # Sum all waiting time buckets
-    wait_cols = [col for col in df.columns if col.startswith('gt_') and '_weeks' in col]
-    df["wait_sum"] = df[wait_cols].sum(axis=1, skipna=True)
-
-    # Compute differences for QA
-    df["diff_total"] = np.where(
-        df["rtt_part_type"].isin(["part_1a", "part_1b"]),
-        df["wait_sum"] - df.get("total", 0),
-        np.nan,
-    )
-    df["diff_total_all"] = np.where(
-        df["rtt_part_type"].isin(["part_3"]),
-        np.nan,
-        df["wait_sum"] - df.get("total_all", 0) + df.get("patients_with_unknown_clock_start_date", 0),
+    df.columns = (
+        df.columns.str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
+        .str.replace("[()€$]", "", regex=True)
+        .str.replace("_sum_1", "")
+        .str.replace("_sum", "")
     )
 
     return df
 
 
-def check_qa_issues(df: pd.DataFrame, period: str, tolerance: float = 0.01) -> list[str]:
-    """
-    Check for data quality issues.
-
-    Returns list of issue descriptions (empty if all OK).
-    """
-    issues = []
-
-    # Check for rows with significant total discrepancies
-    bad_total = df[df["diff_total"].abs() > tolerance]
-    if len(bad_total) > 0:
-        issues.append(f"Period {period}: {len(bad_total)} rows with diff_total > {tolerance}")
-
-    bad_total_all = df[df["diff_total_all"].abs() > tolerance]
-    if len(bad_total_all) > 0:
-        issues.append(f"Period {period}: {len(bad_total_all)} rows with diff_total_all > {tolerance}")
-
-    return issues
-
-
-def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry, check_only: bool = False) -> Optional[pd.DataFrame]:
+def import_rtt_period(
+    period: str, file_path: Path, registry: RTTFormatRegistry, check_only: bool = False
+) -> Optional[pd.DataFrame]:
     """
     Import RTT data for a single period.
 
@@ -218,7 +134,10 @@ def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry,
             return df
         else:
             # Fail fast - do not import data with QA issues
-            raise ValueError(error_msg + "\n  Refusing to import data with QA issues. Fix source data or adjust tolerance.")
+            raise ValueError(
+                error_msg
+                + "\n  Refusing to import data with QA issues. Fix source data or adjust tolerance."
+            )
 
     if check_only:
         print(f"  ✓ QA check complete (no issues)")
@@ -229,16 +148,43 @@ def import_rtt_period(period: str, file_path: Path, registry: RTTFormatRegistry,
     chunksize = calculate_optimal_chunksize(num_columns)
     max_vars = get_sqlite_max_variables()
 
-    print(f"  Bulk insert: {num_columns} columns, chunksize={chunksize} (SQLite limit: {max_vars} variables)")
-
-    df.to_sql(
-        name="all_rtt_raw",
-        con=engine,
-        if_exists="append",
-        index=False,
-        method='multi',
-        chunksize=chunksize
+    print(
+        f"  Bulk insert: {num_columns} columns, chunksize={chunksize} (SQLite limit: {max_vars} variables)"
     )
+
+    # df.to_sql(
+    #     name="all_rtt_raw",
+    #     con=engine,
+    #     if_exists="append",
+    #     index=False,
+    #     method="multi",
+    #     chunksize=chunksize,
+    # )
+    connection = engine.raw_connection()
+    cursor = connection.cursor()
+
+    table_name = "all_rtt_raw"
+
+    # Get column names
+    columns = list(df.columns)
+    placeholders = ", ".join(["?" for _ in columns])
+    column_names = ", ".join(columns)
+
+    # Insert data row by row using INSERT OR REPLACE
+    for _, row in df.iterrows():
+        values = [row[col] for col in columns]
+        insert_sql = f"INSERT OR REPLACE INTO {table_name} ({column_names}) VALUES ({placeholders})"
+        try:
+            cursor.execute(insert_sql, values)
+        except Exception as e:
+            print(
+                f"Error inserting row: {e} query : {insert_sql} values: {values} row: {row}"
+            )
+            cursor.close()
+            raise e
+
+    connection.commit()
+    print(f"Loaded {len(df)} rows into {table_name}")
 
     print(f"  ✓ Imported {len(df):,} rows")
     return None
@@ -248,10 +194,11 @@ def import_all_rtt_from_jsonl(
     jsonl_path: Optional[Path] = None,
     start_period: Optional[str] = None,
     end_period: Optional[str] = None,
-    check_only: bool = False
+    check_only: bool = False,
 ):
     """
-    Import all RTT data from scrapy JSONL metadata file.
+    Import all RTT data using scrapy JSONL metadata file to locate previously
+     downloaded files.
 
     Args:
         jsonl_path: Path to JSONL file (default: files/downloadsrtt-waiting-times.jsonl)
@@ -274,7 +221,7 @@ def import_all_rtt_from_jsonl(
     imported_count = 0
     skipped_count = 0
 
-    with open(jsonl_path, 'r') as f:
+    with open(jsonl_path, "r") as f:
         for line in f:
             data = json.loads(line)
 
@@ -293,8 +240,6 @@ def import_all_rtt_from_jsonl(
                 if not period:
                     continue
 
-                print(f"Processing {period} ({start_period}/{end_period}): {file_meta.get('filename')}")
-
                 # Apply period filters
                 if start_period and period < start_period:
                     skipped_count += 1
@@ -302,6 +247,10 @@ def import_all_rtt_from_jsonl(
                 if end_period and period > end_period:
                     skipped_count += 1
                     continue
+
+                print(
+                    f"Processing {period} ({start_period}/{end_period}): {file_meta.get('filename')}"
+                )
 
                 # Get file path from scrapy metadata
                 # Scrapy stores downloaded files with hash-based names

@@ -1,7 +1,10 @@
 from enum import Enum
+from pathlib import Path
+from typing import Sequence
 
 from requests import Session
 from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 
 class FormatChoices(str, Enum):
@@ -13,7 +16,13 @@ class FormatChoices(str, Enum):
     TABLE = "table"
 
 
-from urllib3.util import Retry
+def find_project_root(markers: Sequence[str] = ('.git', 'pyproject.toml', 'requirements.txt')) -> Path:
+    current = Path.cwd()
+    while current != current.parent:
+        if any((current / marker).exists() for marker in markers):
+            return current
+        current = current.parent
+    raise FileNotFoundError(f"Could not find any of {markers}")
 
 
 def get(url: str):
