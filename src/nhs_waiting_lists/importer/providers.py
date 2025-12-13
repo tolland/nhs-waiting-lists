@@ -7,6 +7,7 @@ from nhs_waiting_lists import (
     __app_name__,
 )
 from nhs_waiting_lists.constants import proj_db_path, DB_FILE
+from nhs_waiting_lists.utils.sqlite_utils import load_data_to_database2
 from nhs_waiting_lists.utils.xdg import XDGBasedir
 
 project_root = Path(XDGBasedir.get_data_dir(__app_name__))
@@ -38,9 +39,19 @@ def load_providers():
         "Trust_type": "type",
     })
 
-    df.to_sql(
-        name="provider",
-        con=engine,
-        if_exists="replace",
-        index=False
+    df = df.filter(["provider", "provider_name", "region_name", "subtype", "type"])
+
+    connection = engine.raw_connection()
+
+    load_data_to_database2(
+        df,
+        "provider",
+        connection,
     )
+
+    # df.to_sql(
+    #     name="provider",
+    #     con=engine,
+    #     if_exists="replace",
+    #     index=False
+    # )

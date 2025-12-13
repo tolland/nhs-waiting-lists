@@ -214,6 +214,8 @@ def import_rtt_to_rtt_metrics(
     df_wide["completed"] = df_wide["nonadmitted"] + df_wide["admitted"]
     df_wide["completed_prev"] = df_wide["nonadmitted_prev"] + df_wide["admitted_prev"]
 
+    # df_wide["pathway_delta"] = df_wide["new_periods"]- df_wide["completed"]
+
     df_wide["incomplete_expected"] = (
         df_wide["incomplete_prev"]
         + df_wide["new_periods"]

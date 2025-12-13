@@ -1,6 +1,6 @@
-
 import sqlite3
 
+import pandas as pd
 
 
 def get_sqlite_max_variables() -> int:
@@ -46,13 +46,29 @@ def calculate_optimal_chunksize(num_columns: int, safety_factor: float = 0.9) ->
     return max(1, optimal)
 
 
-"""
-NHS RTT Data Importer
-Imports RTT waiting times data downloaded from NHS into SQLite database
 
-Import stages:
-1. Raw import: CSV → all_rtt_raw table (staging, all columns)
-2. QA checks: Verify totals, check for discrepancies
-3. Aggregation: all_rtt_raw → all_rtt (group by provider, drop commissioner cols)
-4. Consolidation: all_rtt → consolidated (pivot + lag + derived metrics)
-"""
+def load_data_to_database2(df: pd.DataFrame, table_name: str, conn):
+    """Load DataFrame into SQLite database using INSERT OR REPLACE"""
+    cursor = conn.cursor()
+
+    # Get column names
+    columns = list(df.columns)
+    placeholders = ', '.join(['?' for _ in columns])
+    column_names = ', '.join(columns)
+
+    # Insert data row by row using INSERT OR REPLACE
+    for _, row in df.iterrows():
+        values = [row[col] for col in columns]
+        insert_sql = f"INSERT OR REPLACE INTO {table_name} ({column_names}) VALUES ({placeholders})"
+        try:
+            cursor.execute(insert_sql, values)
+        except Exception as e:
+            print(f"Error inserting row: {e} query : {insert_sql} values: {values} row: {row}")
+            cursor.close()
+            raise e
+
+    conn.commit()
+    print(f"Loaded {len(df)} rows into {table_name}")
+
+    # finally:
+    #     conn.close()

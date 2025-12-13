@@ -138,8 +138,6 @@ class Incomplete(Base):
     wait_pct_gte_18: Mapped[Optional[int]] = mapped_column(Integer)
 
     # Summary columns
-    unknown_start: Mapped[Optional[int]] = mapped_column(Integer)
-    total: Mapped[Optional[int]] = mapped_column(Integer)
     total_all: Mapped[Optional[int]] = mapped_column(Integer)
 
     # QA/validation columns (computed during import for integrity checks)
