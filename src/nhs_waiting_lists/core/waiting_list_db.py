@@ -82,7 +82,7 @@ class WaitingListsDB:
                               JOIN dna_summary AS d
                                    ON w.provider = d.provider
                                        AND w.nhs_year = d.reporting_period
-                     ORDER BY unexplained_untreated ASC; \
+                     ORDER BY unexplained_untreated; \
                      """
         ).bindparams(
             # bindparam('provider_codes', expanding=True),

@@ -1,8 +1,8 @@
 """initial schema
 
-Revision ID: c750d7401492
+Revision ID: d365667bdc31
 Revises: 
-Create Date: 2025-12-07 14:57:24.187911
+Create Date: 2025-12-09 14:52:48.912854
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'c750d7401492'
+revision: str = 'd365667bdc31'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -138,9 +138,10 @@ def upgrade() -> None:
     sa.Column('unknown_start', sa.Integer(), nullable=True),
     sa.Column('total', sa.Integer(), nullable=True),
     sa.Column('total_all', sa.Integer(), nullable=True),
-    sa.Column('wait_sum', sa.Integer(), nullable=True),
-    sa.Column('diff_total', sa.Integer(), nullable=True),
-    sa.Column('diff_total_all', sa.Integer(), nullable=True),
+    sa.Column('qa_wait_diff', sa.Integer(), nullable=True),
+    sa.Column('qa_wait_sum', sa.Integer(), nullable=True),
+    sa.Column('qa_diff_total', sa.Integer(), nullable=True),
+    sa.Column('qa_diff_total_all', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('period', 'provider', 'treatment')
     )
     op.create_table('all_rtt_raw',
@@ -380,8 +381,6 @@ def upgrade() -> None:
     sa.Column('wait_gte_18', sa.Integer(), nullable=True),
     sa.Column('wait_pct_lt_18', sa.Integer(), nullable=True),
     sa.Column('wait_pct_gte_18', sa.Integer(), nullable=True),
-    sa.Column('unknown_start', sa.Integer(), nullable=True),
-    sa.Column('total', sa.Integer(), nullable=True),
     sa.Column('total_all', sa.Integer(), nullable=True),
     sa.Column('qa_wait_diff', sa.Integer(), nullable=True),
     sa.Column('qa_wait_sum', sa.Integer(), nullable=True),
@@ -399,7 +398,7 @@ def upgrade() -> None:
     sa.Column('qa_diff_total_all', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('period', 'provider', 'treatment')
     )
-    op.create_table('non_admitted',
+    op.create_table('nonadmitted',
     sa.Column('period', sa.Text(), nullable=False),
     sa.Column('provider', sa.Text(), nullable=False),
     sa.Column('treatment', sa.Text(), nullable=False),
@@ -509,12 +508,17 @@ def upgrade() -> None:
     sa.Column('gt_103_to_104_weeks', sa.Integer(), nullable=True),
     sa.Column('gt_104_weeks', sa.Integer(), nullable=True),
     sa.Column('gt_52_weeks', sa.Integer(), nullable=True),
+    sa.Column('wait_lt_18', sa.Integer(), nullable=True),
+    sa.Column('wait_gte_18', sa.Integer(), nullable=True),
+    sa.Column('wait_pct_lt_18', sa.Integer(), nullable=True),
+    sa.Column('wait_pct_gte_18', sa.Integer(), nullable=True),
     sa.Column('unknown_start', sa.Integer(), nullable=True),
     sa.Column('total', sa.Integer(), nullable=True),
     sa.Column('total_all', sa.Integer(), nullable=True),
-    sa.Column('wait_sum', sa.Integer(), nullable=True),
-    sa.Column('diff_total', sa.Integer(), nullable=True),
-    sa.Column('diff_total_all', sa.Integer(), nullable=True),
+    sa.Column('qa_wait_diff', sa.Integer(), nullable=True),
+    sa.Column('qa_wait_sum', sa.Integer(), nullable=True),
+    sa.Column('qa_diff_total', sa.Integer(), nullable=True),
+    sa.Column('qa_diff_total_all', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('period', 'provider', 'treatment')
     )
     op.create_table('outpatients_activity',
@@ -527,22 +531,15 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('reporting_period', 'geography_level', 'organisation_code', 'measure_type', 'measure')
     )
     op.create_table('provider',
-    sa.Column('Region', sa.Text(), nullable=True),
-    sa.Column('Trust_type', sa.Text(), nullable=True),
-    sa.Column('Trust_subtype', sa.Text(), nullable=True),
-    sa.Column('Trust_code', sa.Text(), nullable=False),
-    sa.Column('Trust_name', sa.Text(), nullable=True),
-    sa.Column('Reporting_date', sa.Text(), nullable=True),
-    sa.Column('Average_score', sa.REAL(), nullable=True),
-    sa.Column('Likely_range_of_average_score', sa.Text(), nullable=True),
-    sa.Column('Segment', sa.REAL(), nullable=True),
-    sa.Column('Trust_in_financial_deficit', sa.Text(), nullable=True),
-    sa.Column('Rank', sa.REAL(), nullable=True),
-    sa.Column('Likely_range_of_rank', sa.Text(), nullable=True),
-    sa.PrimaryKeyConstraint('Trust_code')
+    sa.Column('region_name', sa.Text(), nullable=True),
+    sa.Column('type', sa.Text(), nullable=True),
+    sa.Column('subtype', sa.Text(), nullable=True),
+    sa.Column('provider', sa.Text(), nullable=False),
+    sa.Column('provider_name', sa.Text(), nullable=True),
+    sa.PrimaryKeyConstraint('provider')
     )
     with op.batch_alter_table('provider', schema=None) as batch_op:
-        batch_op.create_index('provider_Trust_code_uindex', ['Trust_code'], unique=True)
+        batch_op.create_index('provider_Trust_code_uindex', ['provider'], unique=True)
 
     op.create_table('providers',
     sa.Column('region_name', sa.Text(), nullable=True),
@@ -591,8 +588,9 @@ def upgrade() -> None:
     sa.Column('admitted_prev', sa.Integer(), nullable=True),
     sa.Column('new_periods_prev', sa.Integer(), nullable=True),
     sa.Column('nonadmitted_prev', sa.Integer(), nullable=True),
-    sa.Column('treated', sa.Integer(), nullable=True),
-    sa.Column('treated_prev', sa.Integer(), nullable=True),
+    sa.Column('total_treatable', sa.Integer(), nullable=True),
+    sa.Column('completed', sa.Integer(), nullable=True),
+    sa.Column('completed_prev', sa.Integer(), nullable=True),
     sa.Column('wait_gte_18', sa.Integer(), nullable=True),
     sa.Column('wait_lt_18', sa.Integer(), nullable=True),
     sa.Column('wait_pct_lt_18', sa.Integer(), nullable=True),
@@ -615,7 +613,7 @@ def downgrade() -> None:
 
     op.drop_table('provider')
     op.drop_table('outpatients_activity')
-    op.drop_table('non_admitted')
+    op.drop_table('nonadmitted')
     op.drop_table('new_periods')
     op.drop_table('incomplete')
     op.drop_table('all_rtt_raw')
