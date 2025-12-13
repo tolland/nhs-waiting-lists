@@ -8,9 +8,12 @@
 
 ## Background
 
-The NHS has published Referral to Treatment (RTT) waiting times data since 2007,
-and is available in a readily parsable
-format [since 2011](https://www.england.nhs.uk/statistics/statistical-work-areas/rtt-waiting-times/)
+The NHS has published Referral to Treatment (RTT) waiting times data since 2007
+in various formats.
+[Since 2015-16](https://www.england.nhs.uk/statistics/statistical-work-areas/rtt-waiting-times/)
+financial year they have been providing this in a single csv file per reporting
+period. Which makes it somewhat easier to analyse. Before that it was published
+as excel spreadsheets.
 The dataset is based on monthly submissions from organisations providing
 consultant-led care under the Open Government Licence v3.0. Each submission
 reports the number of
