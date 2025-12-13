@@ -36,7 +36,46 @@ make the data more accessible:
 3. The data is exposed as a package object, which can be queried using pandas
    functions.
 
+## Understanding RTT Pathways and Patient Waits
+
+An RTT pathway tracks an individual patient's journey from referral to
+treatment. Each pathway has a "clock start" (when the referral is made) and a
+"clock stop" (when treatment begins or the pathway ends for non-clinical
+reasons).
+
+The dataset reports incomplete pathways - these represent patients still
+waiting for treatment. While it's common to refer to this as the number of
+"patients waiting", this isn't strictly accurate. In practice, most patients
+are on a single pathway, but some patients may have multiple concurrent
+pathways for different conditions or treatments. Currently, there is no
+reliable way to quantify what proportion of pathways correspond to unique
+patients versus patients with multiple active pathways.
+
+For practical purposes, the incomplete pathways count serves as a close
+approximation of patients waiting, but this limitation should be kept in mind
+when interpreting the data or making claims about patient numbers.
+
 ## Limitations
+
+### Dataset Quality and Temporal Reliability
+
+**The data quality varies significantly over time:**
+
+* **2023 onwards (Recommended)**: The data is mostly reliable from the start of
+  2023. This is the recommended period for analysis.
+
+* **2022**: Missing submissions from RDU (NHS England Regional Teams) and R0A
+  (provider type) organisations affect data completeness for this year. Use
+  with caution.
+
+* **Pre-2022**: Increasingly unreliable due to field mapping inconsistencies,
+  trust mergers, splits, renaming, and lower quality submissions. Historical
+  analysis before 2022 should account for these data quality issues.
+
+* **Bucketing changes**: The wait time bucketing changed from >52 weeks to >104
+  weeks in 2021. Querying across these buckets will require manual processing.
+
+### Technical and Data Scope Limitations
 
 * This package was developed and tested on Linux. It may not work on Windows
   or Mac, but probably will with minor changes.
@@ -46,17 +85,10 @@ make the data more accessible:
   them.
 * This package is mainly focused on the acute trust providers due to the
   availability of the types and subtypes of these providers via the NHS
-  oversight
-  framework publications. Therefore, you can do something like:
+  oversight framework publications. Therefore, you can do something like:
   `nhs.get_df(start_period="2024-01").query("provider.type == 'Acute Trust'")`
-  but you can't do that for say independent
-  specialists, because the NHS doesn't publish that data in an easy-to-use
-  format.
-* The data becomes increasingly more unreliable as you go back further in time.
-  Due to trust mergers, splits, renaming and low quality submissions.
-* Bucketing of the data changed from greater than 52 weeks to to greater than
-  104 weeks in 2021. Querying across these buckets will require some manual
-  processing..
+  but you can't do that for say independent specialists, because the NHS
+  doesn't publish that data in an easy-to-use format.
 
 ## Getting started
 
