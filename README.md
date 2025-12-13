@@ -44,13 +44,16 @@ make the data more accessible:
 * This package is mainly focused on the acute trust providers due to the
   availability of the types and subtypes of these providers via the NHS
   oversight
-  framework publications. Therefore you can do something like:
+  framework publications. Therefore, you can do something like:
   `nhs.get_df(start_period="2024-01").query("provider.type == 'Acute Trust'")`
   but you can't do that for say independent
-  specialists, because the NHS doesn't publish that data in an easy to use
+  specialists, because the NHS doesn't publish that data in an easy-to-use
   format.
 * The data becomes increasingly more unreliable as you go back further in time.
   Due to trust mergers, splits, renaming and low quality submissions.
+* Bucketing of the data changed from greater than 52 weeks to to greater than
+  104 weeks in 2021. Querying across these buckets will require some manual
+  processing..
 
 ## Getting started
 
@@ -62,9 +65,13 @@ Install the package using pip or uv in the regular way.
 
 ```bash
 
-# Run the scraper for the RTT data
-# in general you want to pick a recent start period, as the full dataset is many GBs
-nhsctl scraper rtt --start_period 2023-01
+# in general you want to pick a recent start period, as the full dataset is many 
+# GBs. Also you want to go one month back from the period of interest in order to 
+# have metrics that rely on the previous month's final counts for this month 
+# such as total_treatable
+
+# Run the scraper for the RTT data (uf you are interested in 2023-01, use 2022-12)
+nhsctl scraper rtt --start_period 2022-12
 
 # Run the scraper for the provider codes to types mappings
 nhsctl scraper providers
