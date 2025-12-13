@@ -1,8 +1,8 @@
+import re
 from datetime import date
 from pathlib import Path
-import re
+
 import pandas as pd
-from dateutil.relativedelta import relativedelta
 
 from nhs_waiting_lists.utils.csv_format_spec import RTTFormatRegistry
 

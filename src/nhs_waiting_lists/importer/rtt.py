@@ -1,11 +1,9 @@
 import json
-import sqlite3
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 
@@ -78,7 +76,6 @@ def load_rtt_csv_from_zip(
 
     if spec.cols_to_drop:
         df.drop(columns=spec.cols_to_drop, inplace=True)
-
 
     df = df.copy().assign(pathway=lambda d: d["pathway"].map(map_names))
 

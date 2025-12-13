@@ -1,15 +1,19 @@
 from pathlib import Path
+from typing import Sequence
 
 import pandas as pd
-from typing import Sequence
 from sqlalchemy import create_engine
-from sqlalchemy import text, bindparam
+from sqlalchemy import select, and_, bindparam, table, column
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from nhs_waiting_lists import (
     __app_name__,
 )
 from nhs_waiting_lists.constants import proj_db_path, DB_FILE
+from nhs_waiting_lists.models import Provider
 from nhs_waiting_lists.utils.xdg import XDGBasedir
-from sqlalchemy import select, and_, bindparam, table, column
+
 project_root = Path(XDGBasedir.get_data_dir(__app_name__))
 
 DB_PATH = project_root / proj_db_path / DB_FILE
@@ -117,3 +121,67 @@ def get_consolidated_df(
     )
 
     return consolidated_df
+
+
+
+def get_consolidated_for_export(
+    start_period: str,
+    end_period: str,
+) -> pd.DataFrame:
+    """
+    this method is a low level access the consolidated summary table for a subset of providers and treatments.
+    It is used when further processing is required of aggregates and groupby at different levels
+    :param engine:
+    :param start_period:
+    :param end_period:
+    :param provider_codes:
+    :param treatment_codes:
+    :return:
+    """
+
+    consolidated_query = text(
+        """
+        SELECT i.*,
+               p.type    AS provider_type,
+               p.subtype AS provider_subtype
+        FROM consolidated AS i
+                 LEFT JOIN provider AS p
+                           ON i.provider = p.provider
+        WHERE i.period >= :start_period
+          AND i.period <= :end_period
+        ORDER BY i.provider, i.period
+        """
+    ).bindparams(
+        bindparam("start_period", expanding=False),
+        bindparam("end_period", expanding=False),
+    )
+
+    consolidated_df = pd.read_sql(
+        consolidated_query,
+        engine,
+        params={
+            "start_period": start_period,
+            "end_period": end_period,
+        },
+    )  # type: ignore[arg-type]
+
+    return consolidated_df
+
+
+def load_dataset(
+    dataset: str
+) -> pd.DataFrame:
+
+    session = Session(engine)
+
+    stmt = select(Provider)
+
+    df = pd.read_sql(
+        stmt,
+        con=engine,
+    
+    )
+
+    return df
+
+

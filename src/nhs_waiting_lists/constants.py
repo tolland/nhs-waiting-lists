@@ -1,21 +1,14 @@
 # utils and constants for processing rtt wtd full csv data
 
-
+# contains sqlite db
 proj_db_path = "db"
+# used by scrapy
+proj_files_path = "files"
+# arbitrary data, used for parsing olde excel formats
+proj_data_path = "data"
 
 # Primary database file - contains all tables
 DB_FILE = "nhs_waiting_lists.db"
-
-# Table organization:
-# Staging tables (can be truncated/dropped after QA):
-#   - all_rtt_raw: Raw CSV dumps with all columns, minimal cleaning
-#
-# Production tables:
-#   - all_rtt: Cleaned RTT data (grouped by provider)
-#   - consolidated: Derived metrics from all_rtt
-#   - providers: Provider metadata
-#   - outpatients_activity: Outpatient attendance data
-#   - v_consolidated: View joining consolidated + providers
 
 # main column names common across all parts
 base_col_names = [

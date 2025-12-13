@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 import pandas as pd
 import typer
@@ -8,6 +7,7 @@ from rich.table import Table
 from sqlalchemy import create_engine
 from sqlalchemy import text, bindparam
 
+import nhs_waiting_lists as nhs
 from nhs_waiting_lists.constants import proj_db_path, LARGE_ACUTE_PROVIDER_CODES
 from nhs_waiting_lists.utils.utils import find_project_root
 
@@ -23,10 +23,10 @@ def providers_callback(ctx: typer.Context):
 @app.command("list")
 def list_providers(
     ctx: typer.Context,
-    language: Optional[str] = typer.Option(None, "--language", "-l"),
-    gender: Optional[str] = typer.Option(None, "--gender", "-g"),
 ):
     typer.echo(f"Listing the providers ....")
+    df = nhs.load_dataset("provider")
+    print(df)
 
 
 @app.command("report")

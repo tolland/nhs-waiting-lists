@@ -4,6 +4,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+
 from nhs_waiting_lists import (
     __app_name__,
 )

@@ -64,13 +64,13 @@ def outpatients_activity(
 @app.command("rtt")
 def rtt_waiting_times(
     _ctx: typer.Context,
-    start_period: Annotated[
-        Optional[str],
-        typer.Option("--start-period", help="Start period in YYYY-MM format"),
-    ] = None,
-    end_period: Annotated[
-        Optional[str], typer.Option("--end-period", help="End period in YYYY-MM format")
-    ] = None,
+    # start_period: Annotated[
+    #     Optional[str],
+    #     typer.Option("--start-period", help="Start period in YYYY-MM format"),
+    # ] = None,
+    # end_period: Annotated[
+    #     Optional[str], typer.Option("--end-period", help="End period in YYYY-MM format")
+    # ] = None,
 ):
     """
     Scrape the referral-to-treatment waiting times data. This is a per-provder,
