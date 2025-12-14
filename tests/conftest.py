@@ -1,12 +1,37 @@
+
+import os
+import tempfile
+from pathlib import Path
+from typing import Generator
+
+import pytest
+
 """
 Pytest configuration and shared fixtures for NHS waiting lists package tests.
 """
 
-import pytest
-import tempfile
-import os
-from pathlib import Path
-from typing import Generator
+# Fixture to set XDG_STATE_HOME to a temp directory
+@pytest.fixture
+def xdg_state_home(tmp_path: Path, monkeypatch):
+    """
+    Sets the XDG_STATE_HOME environment variable to a
+    temporary directory provided by tmp_path.
+    """
+
+    # 1. Convert the pathlib.Path object to a string for os.environ
+    temp_dir = str(tmp_path / "xdg_state")
+
+    # 2. Use monkeypatch to set the environment variable
+    #    This ensures it is automatically restored/unset after the test completes.
+    monkeypatch.setenv("XDG_STATE_HOME", temp_dir)
+
+    # 3. Optional: Print for debugging (you can remove this)
+    print(
+        f"\n[Test Setup] Setting XDG_STATE_HOME to: {os.environ.get('XDG_STATE_HOME')}"
+    )
+
+    # 4. Return the path, in case the test needs to access the directory directly
+    return Path(temp_dir)
 
 
 @pytest.fixture
@@ -18,7 +43,7 @@ def temp_dir() -> Generator[Path, None, None]:
 
 @pytest.fixture
 def sample_data_dir() -> Path:
-    """Path to sample data directory for tests."""
+    """Path to the sample data directory for tests."""
     return Path(__file__).parent / "fixtures" / "sample_data"
 
 

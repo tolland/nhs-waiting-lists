@@ -2,7 +2,10 @@ import matplotlib.pyplot as plt
 from pandas import DataFrame
 
 
-def bar_stacked_on_column(df: DataFrame, column: str):
+def bar_stacked_on_column(
+    df: DataFrame,
+    column: str,
+):
 
     # --- New Logic to Order the Stack ---
 
@@ -45,4 +48,3 @@ def bar_stacked_on_column(df: DataFrame, column: str):
 
     # Adjust layout to make room for the rotated x-axis labels and legend
     plt.tight_layout()
-

@@ -3,7 +3,7 @@ import pytest
 from pathlib import Path
 
 """
-Basic tests to verify pytest setup and package functionality.
+Basic tests to verify pytest setup and package funct    ionality.
 """
 
 

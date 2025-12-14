@@ -36,6 +36,9 @@ In this case you can simply query the data from the package object:
 ```python
 import nhs_waiting_lists as nhs
 
+# first time you run this.
+nhs.init_db() # load bundled data into sqlite
+
 start_period = "2024-01"
 end_period = "2024-12"
 summary_df = nhs.get_consolidated_df(

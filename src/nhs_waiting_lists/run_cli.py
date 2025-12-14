@@ -1,11 +1,11 @@
 import typer
 from rich.console import Console
 
-from nhs_waiting_lists.commands import provider, scraper, importer, init
+from nhs_waiting_lists.callbacks import get_callback
+from nhs_waiting_lists.commands import scraper, importer, init, query
 
 console = Console()
 
-from nhs_waiting_lists.callbacks import get_callback
 
 
 def create_app() -> typer.Typer:
@@ -26,7 +26,7 @@ def create_app() -> typer.Typer:
     # typer.echo("create_app")
 
     cli.add_typer(init.app)
-    cli.add_typer(provider.app)
+    cli.add_typer(query.app)
     cli.add_typer(scraper.app)
     cli.add_typer(importer.app)
     return cli

@@ -3,8 +3,6 @@ from pathlib import Path
 
 import pandas as pd
 import typer
-from alembic import command
-from alembic.config import Config
 
 import nhs_waiting_lists as nhs
 from nhs_waiting_lists import (
@@ -12,7 +10,7 @@ from nhs_waiting_lists import (
 )
 from nhs_waiting_lists.models import Consolidated
 from nhs_waiting_lists.utils.canned_queries import get_consolidated_for_export, engine
-from nhs_waiting_lists.utils.path_utils import init_paths
+from nhs_waiting_lists.utils.sqlite_utils import init_db
 from nhs_waiting_lists.utils.xdg import XDGBasedir
 
 project_root = Path(XDGBasedir.get_data_dir(__app_name__))
@@ -25,7 +23,8 @@ def init_callback(
     _ctx: typer.Context,
 ):
     """
-    Parse the raw outpatient activity data from csv and xlsx files downloaded by the scrapy spider.
+    Parse the raw outpatient activity data from csv and xlsx files
+    downloaded by the scrapy spider.
     """
 
     print(f"in the init callback")
@@ -109,17 +108,8 @@ def bundled_db_importer(
             )
 
 @app.command("auto")
-def auto_setup(
+def do_auto_setup(
     ctx: typer.Context,
 ):
     typer.echo(f"auto setup ....")
-
-    init_paths()
-
-    alembic_dir = Path(__file__).parent.parent / "migrations"
-
-    # Create an Alembic configuration object
-    alembic_cfg = Config(alembic_dir / "alembic.ini")
-    alembic_cfg.set_main_option("script_location", str(alembic_dir))
-
-    command.upgrade(alembic_cfg, "head")
+    init_db()

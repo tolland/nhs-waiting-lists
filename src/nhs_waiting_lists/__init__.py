@@ -7,3 +7,5 @@ __version__ = importlib.metadata.version(__app_name__)
 
 
 from nhs_waiting_lists.utils.canned_queries import get_consolidated_df, get_consolidated_df2, load_dataset
+from nhs_waiting_lists.utils.sqlite_utils import init_db
+import nhs_waiting_lists.constants as constants

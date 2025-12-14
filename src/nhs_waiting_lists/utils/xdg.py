@@ -30,14 +30,14 @@ class XDGBasedir:
         if WIN:
             raise NotImplementedError("Not implemented for Windows")
 
-        return os.environ.get("XDG_STATE_HOME", cls.get_home_dir() / ".local/state")
+        return Path(os.environ.get("XDG_STATE_HOME", cls.get_home_dir() / ".local/state"))
 
     @classmethod
     def get_xdg_config_home(
         cls,
     ) -> Path:
         """Encapsulates os.environ.get for easier mocking."""
-        return os.environ.get("XDG_CONFIG_HOME") or cls.get_home_dir() / ".config"
+        return Path(os.environ.get("XDG_CONFIG_HOME") or cls.get_home_dir() / ".config")
 
     # this function is derived from the typer get_app_dir library method
     @classmethod

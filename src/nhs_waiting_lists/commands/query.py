@@ -8,23 +8,25 @@ from sqlalchemy import create_engine
 from sqlalchemy import text, bindparam
 
 import nhs_waiting_lists as nhs
+from nhs_waiting_lists import init_db
 from nhs_waiting_lists.constants import proj_db_path, LARGE_ACUTE_PROVIDER_CODES
 from nhs_waiting_lists.utils.utils import find_project_root
 
-app = typer.Typer(name="provider", no_args_is_help=True)
+app = typer.Typer(name="query", no_args_is_help=True)
 
 
 @app.callback()
 def providers_callback(ctx: typer.Context):
     # inspect(ctx.obj, title="inspecting ctx.obj in voices callback")
-    typer.echo(f"in the providers callback")
+    typer.echo(f"in the query callback")
 
 
-@app.command("list")
+@app.command("provider-list")
 def list_providers(
     ctx: typer.Context,
 ):
     typer.echo(f"Listing the providers ....")
+    init_db()
     df = nhs.load_dataset("provider")
     print(df)
 
@@ -65,7 +67,7 @@ def providers_report(
                           INNER JOIN providers AS p ON c.provider = p.provider_code
                  WHERE provider IN :provider_codes
                  GROUP BY p.provider_code
-                 ORDER BY p.provider_code ASC, treatment ASC, period ASC; \
+                 ORDER BY p.provider_code, treatment, period; \
                  """
     ).bindparams(
         bindparam("provider_codes", expanding=True),
@@ -80,7 +82,6 @@ def providers_report(
         },
     )
     # df.query("provider == 'RAJ' and treatment == 'C_999' and period == '2025-08'")
-    df
 
     # Convert df to rich Table
     table = Table(title="Consolidated Data")

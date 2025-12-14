@@ -1,7 +1,58 @@
 import sqlite3
+import zipfile
+from pathlib import Path
 
 import pandas as pd
+from alembic import command
+from alembic.config import Config
 
+import nhs_waiting_lists as nhs
+from nhs_waiting_lists.utils.canned_queries import get_engine
+from nhs_waiting_lists.utils.path_utils import init_paths
+
+
+def init_db():
+    auto_setup()
+    bundled_db_importer("consolidated")
+    bundled_db_importer("provider")
+
+def bundled_db_importer(
+        table_name: str = "consolidated",
+):
+    package_root = Path(nhs.__file__).parent
+
+    zip_file_path = package_root / f"fixtures/{table_name}_df.zip"
+    csv_file_name_in_zip = f"{table_name}_df.csv"
+
+    engine = get_engine()
+    df_test = pd.read_sql(f"SELECT * FROM {table_name} LIMIT 1", engine)
+    if len(df_test) > 0:
+        return
+
+    with zipfile.ZipFile(zip_file_path, "r") as zf:
+        with zf.open(csv_file_name_in_zip) as f:
+            df = pd.read_csv(f)
+
+            df.to_sql(
+                table_name,
+                con=engine,
+                if_exists="append",  # 'append' is fine since we just deleted everything
+                index=False,
+            )
+    df_test2 = pd.read_sql(f"SELECT * FROM {table_name}", engine)
+
+
+def auto_setup(
+):
+    init_paths()
+
+    alembic_dir = Path(nhs.__file__).parent / "migrations"
+
+    # Create an Alembic configuration object
+    alembic_cfg = Config(alembic_dir / "alembic.ini")
+    alembic_cfg.set_main_option("script_location", str(alembic_dir))
+
+    command.upgrade(alembic_cfg, "head")
 
 def get_sqlite_max_variables() -> int:
     """
@@ -44,7 +95,6 @@ def calculate_optimal_chunksize(num_columns: int, safety_factor: float = 0.9) ->
     optimal = int((max_vars / num_columns) * safety_factor)
     # Ensure at least 1 row per chunk
     return max(1, optimal)
-
 
 
 def load_data_to_database2(df: pd.DataFrame, table_name: str, conn):

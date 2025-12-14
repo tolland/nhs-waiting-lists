@@ -1,26 +1,28 @@
-from pathlib import Path
 from typing import Sequence
 
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy import select, and_, bindparam, table, column
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from nhs_waiting_lists import (
-    __app_name__,
-)
-from nhs_waiting_lists.constants import proj_db_path, DB_FILE
 from nhs_waiting_lists.models import Provider
-from nhs_waiting_lists.utils.xdg import XDGBasedir
+from nhs_waiting_lists.utils.path_utils import (
+    init_paths,
+    get_db_path,
+)
 
-project_root = Path(XDGBasedir.get_data_dir(__app_name__))
+engine: Engine|None = None
 
-DB_PATH = project_root / proj_db_path / DB_FILE
-FILES_DIR = project_root / "files"
-
-engine = create_engine(f"sqlite:///{DB_PATH}")
-
+def get_engine() -> Engine:
+    global engine
+    if engine is not None:
+        return engine
+    else:
+        init_paths()
+        db_path = get_db_path()
+        engine = create_engine(f"sqlite:///{db_path}")
+        return engine
 
 def get_consolidated_df2(
     start_period: str,
@@ -60,7 +62,7 @@ def get_consolidated_df2(
 
     df = pd.read_sql(
         stmt,
-        con=engine,
+        con=get_engine(),
         params={
             "provider_codes": provider_codes,
             "treatment_codes": treatment_codes,
@@ -91,13 +93,13 @@ def get_consolidated_df(
 
     consolidated_query = text(
         """
-                              SELECT *
-                              FROM consolidated_summary AS i
-                              WHERE provider IN :provider_codes
-                                AND i.treatment IN :treatment_codes
-                                AND i.period >= :start_period
-                                AND i.period <= :end_period; \
-                              """
+        SELECT *
+        FROM consolidated_summary AS i
+        WHERE provider IN :provider_codes
+          AND i.treatment IN :treatment_codes
+          AND i.period >= :start_period
+          AND i.period <= :end_period; \
+        """
     ).bindparams(
         bindparam("provider_codes", expanding=True),
         bindparam("treatment_codes", expanding=True),
@@ -107,7 +109,7 @@ def get_consolidated_df(
 
     consolidated_df = pd.read_sql(
         consolidated_query,
-        engine,
+        get_engine(),
         params={
             "provider_codes": provider_codes,
             "treatment_codes": treatment_codes,
@@ -121,7 +123,6 @@ def get_consolidated_df(
     )
 
     return consolidated_df
-
 
 
 def get_consolidated_for_export(
@@ -158,7 +159,7 @@ def get_consolidated_for_export(
 
     consolidated_df = pd.read_sql(
         consolidated_query,
-        engine,
+        get_engine(),
         params={
             "start_period": start_period,
             "end_period": end_period,
@@ -172,16 +173,14 @@ def load_dataset(
     dataset: str
 ) -> pd.DataFrame:
 
-    session = Session(engine)
+    session = Session(get_engine())
 
     stmt = select(Provider)
 
     df = pd.read_sql(
         stmt,
-        con=engine,
-    
+        con=get_engine(),
+
     )
 
     return df
-
-
